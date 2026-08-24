@@ -29,5 +29,29 @@ notice?**
 
 ## Status
 
-- [x] Feasibility check on claim sourcing (see ClaimBench §0)
-- [ ] Phase 0 — setup
+129 tests, all offline (no network, no API keys, no data snapshot required).
+
+- [x] Feasibility check on claim sourcing (ClaimBench §0)
+- [x] Harness core — `env/guard.py`, `env/sandbox.py`, `harness/config.py`
+- [x] Spec-curve ground-truth engine — `specs/`
+- [ ] Claim corpus + ingest (needs network)
+- [ ] Agent environment and run/score split
+
+### What the spec curve does
+
+```
+claim    : "Roxbury has more crime than Back Bay"
+label    : UNDERDETERMINED   (provenance: derived)
+support  : 25% of 8 computable specs
+driver   : denominator
+rationale: holds under 2/8 computable specifications -- the verdict flips
+           across defensible choices; driven mainly by 'denominator'
+
+influence by dimension:
+  denominator    1.00
+  offense_set    0.00
+```
+
+The label is computed, not judged. `underdetermined` — the class a model is most
+likely to get wrong — carries no annotator noise and needs no LLM judge, and the
+driver attribution says *which* analytic choice the claim's truth hangs on.
