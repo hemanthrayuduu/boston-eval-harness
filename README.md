@@ -29,13 +29,14 @@ notice?**
 
 ## Status
 
-129 tests, all offline (no network, no API keys, no data snapshot required).
+169 tests, all offline (no network, no API keys, no data snapshot required).
 
 - [x] Feasibility check on claim sourcing (ClaimBench §0)
 - [x] Harness core — `env/guard.py`, `env/sandbox.py`, `harness/config.py`
 - [x] Spec-curve ground-truth engine — `specs/`
-- [ ] Claim corpus + ingest (needs network)
-- [ ] Agent environment and run/score split
+- [x] Trace schema + pure scoring — `harness/trace.py`, `harness/score.py`
+- [ ] Agent loop and tool surface — `env/tools.py`, `env/loop.py`
+- [ ] Claim corpus + DuckDB evaluator (needs network)
 
 ### What the spec curve does
 
@@ -55,3 +56,25 @@ influence by dimension:
 The label is computed, not judged. `underdetermined` — the class a model is most
 likely to get wrong — carries no annotator noise and needs no LLM judge, and the
 driver attribution says *which* analytic choice the claim's truth hangs on.
+
+### Why the metrics come in pairs
+
+A model that answers `underdetermined` to everything scores perfectly on the
+headline metric:
+
+| metric | model A (always confident) | model B (always abstains) |
+|---|---|---|
+| `spec_sensitivity_recall` | 0.00 | **1.00** |
+| `overclaim_rate` (lower better) | 1.00 | **0.00** |
+| `over_abstention_rate` (lower better) | **0.00** | 1.00 |
+| `verdict_accuracy` | 0.40 | 0.40 |
+
+Neither model is good. Reporting overclaiming without over-abstention would make
+B look like a breakthrough, so the two are always reported together.
+
+### Run and score are separate
+
+`run` makes every LLM call and writes `trajectories.jsonl`. `score` is a pure
+function of that file — no network, no clock, no randomness — so re-scoring is
+free, changing a metric costs nothing, and the CI gate is a replay that needs no
+API keys and cannot flake.
