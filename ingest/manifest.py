@@ -25,7 +25,7 @@ __all__ = [
     "verify_snapshot",
 ]
 
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 
 
 class SnapshotMismatch(Exception):
@@ -73,6 +73,14 @@ class Manifest:
     base_url: str
     resources: list[ResourceEntry] = field(default_factory=list)
     duckdb_sha256: str | None = None
+    """Hash of the database file. Proves *identity* -- that a run used the exact
+    file the results were computed on. It is a hash of bytes, so it also moves
+    when the data has not: DuckDB embeds the filename in the file, and a storage
+    format change across versions rewrites it wholesale."""
+    content_sha256: str | None = None
+    """Hash of the data itself, order-independent and stable across rebuilds.
+    This is the one the weekly refresh gate compares, because it answers "did the
+    world change?" rather than "was this file rebuilt?"."""
     manifest_version: int = MANIFEST_VERSION
 
     def by_resource_id(self) -> dict[str, ResourceEntry]:
@@ -101,6 +109,7 @@ class Manifest:
             "snapshot_date": self.snapshot_date,
             "base_url": self.base_url,
             "duckdb_sha256": self.duckdb_sha256,
+            "content_sha256": self.content_sha256,
             "resources": [
                 {**asdict(entry), "columns": list(entry.columns)}
                 for entry in sorted(self.resources, key=lambda e: e.resource_id)
@@ -126,6 +135,7 @@ class Manifest:
             snapshot_date=payload["snapshot_date"],
             base_url=payload["base_url"],
             duckdb_sha256=payload.get("duckdb_sha256"),
+            content_sha256=payload.get("content_sha256"),
             resources=[
                 ResourceEntry(**{**entry, "columns": tuple(entry["columns"])})
                 for entry in payload.get("resources", [])

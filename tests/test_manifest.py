@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from ingest.manifest import (
+    MANIFEST_VERSION,
     Manifest,
     ResourceEntry,
     SnapshotMismatch,
@@ -55,7 +56,9 @@ class TestRoundTrip:
         assert a.to_json() == b.to_json()
 
     def test_wrong_manifest_version_refused(self) -> None:
-        text = manifest(entry()).to_json().replace('"manifest_version": 1', '"manifest_version": 99')
+        text = manifest(entry()).to_json().replace(
+            f'"manifest_version": {MANIFEST_VERSION}', '"manifest_version": 99'
+        )
         with pytest.raises(SnapshotMismatch, match="manifest version"):
             Manifest.from_json(text)
 
