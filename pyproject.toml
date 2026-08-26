@@ -6,9 +6,12 @@ requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.1",
     "sqlglot>=25.0",
-    "polars>=1.0",
+    # 1.43.1 is yanked; skip it explicitly rather than letting a resolver land
+    # there on a machine with a different cache.
+    "polars>=1.0,!=1.43.1",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
+    "requests>=2.32",
 ]
 
 [project.optional-dependencies]
