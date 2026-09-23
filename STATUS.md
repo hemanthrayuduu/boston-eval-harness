@@ -14,9 +14,9 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **329, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **351, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
-| Claims | BPD archive scraped: 639 posts indexed in `claims/sources/bpd/posts.jsonl`, 420 PDFs (32 MB, gitignored). Not yet extracted into claims. See §4g. |
+| Claims | BPD archive scraped (639 posts, 420 PDFs) and extracted: 153 Part One + 152 shootings reports, 113,556 figures with provenance, weekly from 2023-06-11 to 2026-09-20. Not yet turned into `claims.jsonl`. See §4g. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
 | CI | None. No `.github/workflows/`. |
 
@@ -214,6 +214,34 @@ Findings from the prototype parse (2026-09-20 report):
 25. **BPD's reports contain arithmetic errors.** In the Part One totals, the N/D row goes
     86 → 59 and is labeled "0%" (should be −31%). In the shootings PDF, total 2026 victims are
     95 in the first table and 94 in the second, in the same document.
+
+### Extraction
+
+`python -m claims.bpd_extract` recognizes tables by header content (a `District` column means
+Part One; `Shooting Category` or `Incident Type` means shootings), not by position, title or
+filename. It writes:
+- `figures.jsonl`: 113,556 figures, 64 MB, gitignored. Each is one cell with post, PDF hash,
+  page, table, row, column, raw text, and period (prior / current / five_year_avg / change /
+  pct_change / pct_change_vs_avg).
+- `extraction.json` (committed): the per-PDF outcome and every failed consistency check.
+
+Every PDF is in exactly one bucket: **304 parsed** (153 Part One, 152 shootings, with one
+combined file carrying both), **114 firearm reports** (police activity, not parsed), and
+**2 image-only scans** (would need OCR: 2025-06-30 and 2025-11-19). None were unrecognized.
+Weekly coverage runs from 2023-06-11 to 2026-09-20.
+
+**Consistency checks recompute BPD's own arithmetic.** They found 312 failures in 156 reports,
+all verified as BPD's rather than the parser's:
+- Zero subtotal or grand-total failures across all reports, so the parse aligns.
+- The failing A15 row was checked against the raw page text.
+
+26. **BPD's template always prints 0% change for the N/D (no district) row**, in 151 of 153
+    Part One reports.
+27. **Five reports' two shootings tables disagree on current-year victims:** 2023-08-28 (109
+    vs 101), 2024-05-29, 2024-06-10, 2025-05-19, 2026-09-21. The published total depends on
+    which table you read.
+28. **The full-year 2023 report (posted 2024-01-02) prints wrong percent changes for five
+    districts.** For example, A15 goes 298 → 209 but is printed as −43% instead of −29.9%.
 
 ---
 
@@ -423,7 +451,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [x] `corpus/limitations/*.md`: 15 docs with stable `LIM-*` IDs, plus a validating loader (§4f)
 - [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries. 22 are already recorded in §4a, §4c and §4f from my queries; this item is your own hands-on pass
 - [x] `claims/sources/`: scrape the BPD weekly crime-stats archive with dates preserved (§4g). 159 usable posts (2023–2026), 420 PDFs
-- [ ] `claims/bpd_extract.py`: parse the PDFs into figures with provenance (post, PDF hash, page, table, cell), classify report type from content, recompute BPD's percentages and subtotals and flag mismatches
+- [x] `claims/bpd_extract.py`: parse the PDFs into figures with provenance, classify report type from content, recompute BPD's arithmetic and flag mismatches (§4g)
+- [ ] Optional: OCR the 2 image-only PDFs, and parse the firearm-arrest reports if firearm claims are wanted
 - [ ] `claims/extract.py` and the `claims.jsonl` schema (measure, window, geography, direction, magnitude, source URL, pub date, retrieval date, paraphrase)
 - [ ] Hand-source about 40 claims from GBH, Globe, WBUR, Universal Hub, and council statements
 - [ ] **DoD:** 5 BPD claims hand-verified against the snapshot; at least 150 candidates
@@ -476,7 +505,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `ae8d93d` | Counting-grain decision: distinct incidents always, `multi_offense` dimension added (§4d). 300 tests |
 | 2026-09-23 | `38f56de` | Population denominators investigated (§4e): Census API needs a key (blocked); city estimates correct a census undercount, so they're a third option, not a substitute |
 | 2026-09-23 | `9514fd1` | Limitations corpus: 15 docs, validating loader, 6 new findings, 2 of my earlier claims corrected. 319 tests |
-| 2026-09-23 | (this commit) | BPD archive scraper: 639 posts indexed, 420 PDFs, 12 lost to link rot (§4g). 329 tests |
+| 2026-09-23 | `552a1ad` | BPD archive scraper: 639 posts indexed, 420 PDFs, 12 lost to link rot (§4g). 329 tests |
+| 2026-09-23 | (this commit) | BPD figure extraction: 113,556 figures from 305 reports, 312 failed consistency checks in BPD's own reports. 351 tests |
 
 ---
 

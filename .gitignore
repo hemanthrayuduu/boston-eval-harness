@@ -12,3 +12,5 @@ runs/
 
 # Scraped source PDFs: re-fetchable, and verifiable against the hashes in posts.jsonl.
 claims/sources/*/pdf/
+# Extracted figures: 60+ MB, regenerated from the PDFs by claims.bpd_extract.
+claims/sources/*/figures.jsonl

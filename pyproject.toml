@@ -8,6 +8,8 @@ dependencies = [
     # XLSX data dictionaries and the offense-code table. Reads into Polars via the
     # Arrow C stream interface, so no pyarrow.
     "fastexcel>=0.21",
+    # BPD's weekly report PDFs (SSRS-rendered tables with cell borders).
+    "pdfplumber>=0.11",
     "sqlglot>=25.0",
     # 1.43.1 is yanked; skip it explicitly rather than letting a resolver land
     # there on a machine with a different cache.
