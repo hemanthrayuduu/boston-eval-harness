@@ -40,6 +40,11 @@ class ChangeAssertion(_Base):
     tolerance_pct: float = Field(default=5.0, gt=0)
     flat_band_pct: float = Field(default=1.0, ge=0)
     """Percent change treated as no change. Without a band, 'flat' is unfalsifiable."""
+    bound: Literal["about", "at_least", "at_most"] = "about"
+    """How ``stated_pct`` is meant. "Down 16%" is ``about`` (within tolerance);
+    "down more than 30%" is ``at_least`` (a drop of 30% or more); "up no more
+    than 5%" is ``at_most``. Without this, a stated bound would be scored as a
+    point estimate and "more than 30%" would fail on a true 37%."""
 
     def holds(self, value: float) -> bool:
         if self.direction == "up" and not value > self.flat_band_pct:
@@ -48,9 +53,13 @@ class ChangeAssertion(_Base):
             return False
         if self.direction == "flat" and abs(value) > self.flat_band_pct:
             return False
-        if self.stated_pct is not None:
-            return abs(value - self.stated_pct) <= self.tolerance_pct
-        return True
+        if self.stated_pct is None:
+            return True
+        if self.bound == "at_least":
+            return abs(value) >= abs(self.stated_pct)
+        if self.bound == "at_most":
+            return abs(value) <= abs(self.stated_pct)
+        return abs(value - self.stated_pct) <= self.tolerance_pct
 
 
 class LevelAssertion(_Base):

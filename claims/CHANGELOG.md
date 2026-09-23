@@ -4,6 +4,26 @@ The corpus is every `claims/corpus/*.jsonl` file, loaded and validated by `claim
 Bump the version when claims are added, removed, or change meaning. Scores computed against one
 version aren't comparable with another without re-scoring, which is free because scoring is pure.
 
+## 0.2.0 — 2026-09-23
+
+Adds 43 hand-sourced claims (`corpus/hand.jsonl`, built from `hand_sourced.toml`) from 11
+pages: the City of Boston's 2025 year-end release, WBUR (2), GBH News (2), Boston.com (2), the
+Boston Globe, NBC Boston, the Boston Herald via Police1, and CBS Boston. **151 claims in total.**
+
+- **Sourcing.** Every claim was read on its source page. The publication date and key phrases
+  were confirmed in the raw HTML, and several claims were corrected to match the page (see
+  STATUS.md §4i). Bot-blocked pages were left out even when search results quoted them.
+- **What they cover.**
+  - Mix: 35 news and 8 official; 30 change, 7 rank, 4 level and 2 comparison assertions.
+  - Unverifiable on the open data: 5 cross-city claims, plus claims about arrests, rape, rates
+    per capita, and history before 2012.
+- **Schema v2.** Optional and new window kinds (`period_vs_period`, `vs_five_year_average`,
+  `period`, `unspecified`, `reference_years` for ranks), `cross_city` and `district_group`
+  geographies, a `speaker` distinct from the publisher, and more measure families.
+  Version-1 records remain valid; `bpd.jsonl` was regenerated as v2 with no other change.
+- **`ChangeAssertion.bound`** (`about` / `at_least` / `at_most`), so "down more than 30%" is
+  scored as a bound, not a point estimate.
+
 ## 0.1.0 — 2026-09-23
 
 First corpus: 108 claims from BPD's weekly crime-statistics reports (`corpus/bpd.jsonl`),

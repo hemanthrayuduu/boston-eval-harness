@@ -14,9 +14,9 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **365, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **384, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
-| Claims | **Corpus v0.1.0: 108 BPD claims** in `claims/corpus/bpd.jsonl`, selected by documented rules from 29,661 candidates, which come from 305 extracted weekly reports. No hand-sourced claims yet. See §4g–4h and `claims/CHANGELOG.md`. |
+| Claims | **Corpus v0.2.0: 151 claims.** 108 from BPD's weekly reports (`claims/corpus/bpd.jsonl`, selected from 29,661 candidates) and 43 hand-sourced from 11 news and official pages (`claims/hand_sourced.toml` → `claims/corpus/hand.jsonl`). See §4g–4i and `claims/CHANGELOG.md`. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
 | CI | None. No `.github/workflows/`. |
 
@@ -175,6 +175,65 @@ Other checks:
 10. **Offense codes are zero-padded in some years' files and not others** (353k rows). All of
     them cast cleanly to `INTEGER`, which is the join key to `offense_codes_source`.
 11. **Boundary geometry is only in the GeoJSON.** See the correction above.
+
+---
+
+## 4i. Hand-sourced claims (2026-09-23)
+
+43 claims from 11 pages:
+
+| Source | Date |
+|---|---|
+| City of Boston year-end release | 2025-12-19 |
+| WBUR | 2024-12-27, 2025-12-15 |
+| GBH News | 2024-10-07, 2025-12-15 |
+| Boston.com | 2024-12-29, 2026-01-12 |
+| Boston Globe | 2025-08-15 |
+| Boston Herald (via Police1) | 2025-12-06 |
+| CBS Boston | 2026-07-06 |
+| NBC Boston | 2026-08-15 |
+
+They're authored in `claims/hand_sourced.toml` (readable, commented) and built by
+`python -m claims.hand_claims`. A test fails if `hand.jsonl` drifts from the TOML. Unknown
+sources, unknown fields, unused sources and duplicate IDs all fail the build.
+
+**How they were sourced.** Search results and a summarizing fetch tool were used only to *find*
+claims. Every claim's publication date and key phrases were then confirmed in the page's raw
+HTML. That caught three summarizer errors:
+- It gave the city release's date as Dec 22; the page says Dec 19.
+- It reported a "9th of 50 largest cities" ranking. GBH actually says "eight other cities had
+  even lower rates", so the rank is implied and is now marked as such.
+- It missed that GBH's "4 homicides" came with "against 18 a year earlier". That claim is now
+  a change claim.
+
+Axios (2026-08-14, "homicides down 52%") returns 403 to automated fetches. It's left out even
+though search results quoted it, because it couldn't be read.
+
+**What the corpus now covers.**
+- **Assertions:** 30 change, 7 rank ("lowest since 1957", "safest major city", FBI and MCCA
+  rankings), 4 level, 2 comparison ("fewer than 200 victims three years running", "more than
+  100 survived").
+- **Windows:** 6 kinds, including partial-year-vs-full-year and vs-five-year-average.
+- **Geography:** citywide, two named neighborhoods without official boundaries (Downtown,
+  Mass & Cass), a district group (B-2 + B-3), a district, and 5 cross-city claims.
+- **Unverifiable by construction:** cross-city rankings, arrests, rape, per-capita rates (no
+  population yet), and history before 2012.
+
+Findings:
+32. **Published news claims contradict their own counts.** The Globe (2025-08-15) says
+    non-fatal shooting victims "declined by 14 percent: 60… compared to 74", which is −18.9%,
+    and shootings "declined by 3 percent… 64… compared to 67", which is −4.5%. Confirmed
+    verbatim in the raw page.
+33. **2025's homicide count depends on the date you ask:**
+    - 24 (Globe, through Aug 13)
+    - 30 (Herald, through Nov 23, "+36%" against 22)
+    - 31 "to date" (WBUR and GBH, Dec 15, against *all* of 2024's 24)
+    - 31 for the full year (Boston.com, Jan 12, "+30%")
+
+    The 2024 baseline is 22 year-to-date or 24 for the full year. Window choice is visibly
+    doing work in published claims.
+34. **The CBS weekend claim reproduces exactly:** 13 people shot, 2 fatally, in B2 and C11 on
+    July 4–5, 2026. But the data records 6 incidents where CBS says "five shootings".
 
 ---
 
@@ -508,8 +567,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] Optional: OCR the 2 image-only PDFs, and parse the firearm-arrest reports if firearm claims are wanted
 - [x] Claim schema and BPD claim generation: `claims/schema.py`, `claims/bpd_claims.py`, `claims/corpus/bpd.jsonl` (108 claims, v0.1.0, §4h)
 - [x] Hand-verify 5 BPD claims against the snapshot (§4h): 3 hold, 2 don't on a naive spec
-- [ ] Hand-source about 40 claims from GBH, Globe, WBUR, Universal Hub, and council statements
-- [ ] **DoD:** ~~5 BPD claims hand-verified~~ (done); at least 150 claims in the corpus. Currently 108; the ~40 hand-sourced claims close the gap
+- [x] Hand-source about 40 claims: 43 from 11 pages (§4i). Not yet covered: Universal Hub, council statements, and forums (r/boston). Forums were skipped for now because they attribute to individuals
+- [x] **DoD:** 5 BPD claims hand-verified (§4h); **151 claims** in the corpus (§4i). Phase 1's other items (population denominators, your label review and exploration pass) remain open
 
 ### Phase 2 finish: the real evaluator
 - [ ] `specs/compute.py`: `(claim, spec) -> float | None` as parameterized SQL over DuckDB, going through `env/sandbox`. Cached. Count `DISTINCT INCIDENT_NUMBER` (§4d), join `offense_codes` for `offense_set`, honor `multi_offense`
@@ -561,7 +620,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `9514fd1` | Limitations corpus: 15 docs, validating loader, 6 new findings, 2 of my earlier claims corrected. 319 tests |
 | 2026-09-23 | `552a1ad` | BPD archive scraper: 639 posts indexed, 420 PDFs, 12 lost to link rot (§4g). 329 tests |
 | 2026-09-23 | `2c0467d` | BPD figure extraction: 113,556 figures from 305 reports, 312 failed consistency checks in BPD's own reports. 351 tests |
-| 2026-09-23 | (this commit) | Claim corpus v0.1.0: schema, 108 BPD claims from 29,661 candidates, 5 hand-verified; `ucr_part` shadowing bug fixed; extractor Grand Total fix. 365 tests |
+| 2026-09-23 | `9b8b7df` | Claim corpus v0.1.0: schema, 108 BPD claims from 29,661 candidates, 5 hand-verified; `ucr_part` shadowing bug fixed; extractor Grand Total fix. 365 tests |
+| 2026-09-23 | (this commit) | Corpus v0.2.0: 43 hand-sourced claims from 11 verified pages (151 total), schema v2, `ChangeAssertion.bound`. 384 tests |
 
 ---
 

@@ -1,0 +1,640 @@
+# Hand-sourced claims: published, dated, attributable statements about Boston crime.
+#
+# Built into claims/corpus/hand.jsonl by `python -m claims.hand_claims`.
+#
+# Sourcing rule: a claim is here only if it was read on the source page itself.
+# Every page below was fetched on 2026-09-23, and its publication date and the key
+# phrases each claim rests on were confirmed in the raw HTML (not from search
+# snippets or summaries). Paywalled or bot-blocked pages whose text could not be
+# read are left out, even when search results quoted them (Axios, 2026-08-14).
+#
+# Paraphrase, don't quote. Attribute to organizations and roles. Claims the open
+# data cannot check (cross-city rankings, arrests, "since 1957") are kept: they
+# are the unverifiable class, not rejects.
+
+# ---------------------------------------------------------------------------
+# Sources
+
+[sources.bostongov-2025-12-19]
+kind = "official_statement"
+organization = "City of Boston"
+url = "https://www.boston.gov/news/mayor-michelle-wu-shares-end-year-update-public-safety-efforts"
+published = 2025-12-19
+retrieved = 2026-09-23
+
+[sources.wbur-2025-12-15]
+kind = "news"
+organization = "WBUR"
+url = "https://www.wbur.org/news/2025/12/15/boston-homicide-rate-2025-wu-cox-safety"
+published = 2025-12-15
+retrieved = 2026-09-23
+
+[sources.gbh-2025-12-15]
+kind = "news"
+organization = "GBH News"
+url = "https://www.wgbh.org/news/politics/2025-12-15/wu-again-claims-boston-is-safest-city-in-us-but-recent-data-suggests-otherwise"
+published = 2025-12-15
+retrieved = 2026-09-23
+
+[sources.gbh-2024-10-07]
+kind = "news"
+organization = "GBH News"
+url = "https://www.wgbh.org/news/politics/2024-10-07/is-boston-really-americas-safest-major-city-wu-says-yes-but-the-numbers-arent-so-clear"
+published = 2024-10-07
+retrieved = 2026-09-23
+
+[sources.wbur-2024-12-27]
+kind = "news"
+organization = "WBUR"
+url = "https://www.wbur.org/news/2024/12/27/boston-homicide-murder-rate-falls"
+published = 2024-12-27
+retrieved = 2026-09-23
+
+[sources.bostoncom-2024-12-29]
+kind = "news"
+organization = "Boston.com"
+url = "https://www.boston.com/news/crime/2024/12/29/the-city-has-never-been-safer-boston-records-lowest-murder-rate-since-1957-officials-announce/"
+published = 2024-12-29
+retrieved = 2026-09-23
+
+[sources.bostoncom-2026-01-12]
+kind = "news"
+organization = "Boston.com"
+url = "https://www.boston.com/news/local-news/2026/01/12/bostons-homicide-rate-increases-30-from-2024-from-24-killings-to-31/"
+published = 2026-01-12
+retrieved = 2026-09-23
+
+[sources.globe-2025-08-15]
+kind = "news"
+organization = "The Boston Globe"
+url = "https://www.bostonglobe.com/2025/08/15/metro/boston-homicides-crime-rates-2025/"
+published = 2025-08-15
+retrieved = 2026-09-23
+
+[sources.nbc-2026-08-15]
+kind = "news"
+organization = "NBC Boston"
+url = "https://www.nbcboston.com/news/local/boston-violent-crime-data-first-half-2026/3998401/"
+published = 2026-08-15
+retrieved = 2026-09-23
+
+[sources.herald-2025-12-06]
+kind = "news"
+organization = "Boston Herald (syndicated by Police1)"
+url = "https://www.police1.com/crime/boston-homicides-up-36-in-2025"
+published = 2025-12-06
+retrieved = 2026-09-23
+
+[sources.cbs-2026-07-06]
+kind = "news"
+organization = "CBS News Boston"
+url = "https://www.cbsnews.com/boston/news/boston-police-union-more-officers-violent-weekend/"
+published = 2026-07-06
+retrieved = 2026-09-23
+
+# ---------------------------------------------------------------------------
+# City of Boston end-of-year public safety update, 2025-12-19
+
+[[claim]]
+id = "hand-bostongov-20251219-homicides-vs-5yr"
+source = "bostongov-2025-12-19"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said Boston's 2025 homicides were 16% below the five-year average."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "vs_five_year_average", current_start = 2025-01-01, current_end = 2025-12-19 }
+assertion = { kind = "change", direction = "down", stated_pct = -16.0 }
+stated = { printed_pct = -16.0 }
+cluster = "homicide:citywide:2025"
+
+[[claim]]
+id = "hand-bostongov-20251219-shooting-victims-vs-5yr"
+source = "bostongov-2025-12-19"
+speaker = "City of Boston (Mayor)"
+paraphrase = "The city said 2025 shooting victims were at a historic low, down more than 30% from the five-year average."
+measure = { family = "shootings", name = "Shooting victims", shooting_measure = "victims_struck" }
+geography = { level = "citywide" }
+window = { kind = "vs_five_year_average", current_start = 2025-01-01, current_end = 2025-12-19 }
+assertion = { kind = "change", direction = "down", stated_pct = -30.0, bound = "at_least" }
+cluster = "shooting-victims:citywide:2025"
+notes = ["'Historic low' is a rank claim across all tracked years; only the five-year comparison is encoded here."]
+
+[[claim]]
+id = "hand-bostongov-20251219-gunfire-vs-5yr"
+source = "bostongov-2025-12-19"
+speaker = "City of Boston (Mayor)"
+paraphrase = "The city said 2025 gunfire incidents were at a historic low, down more than 30% from the five-year average."
+measure = { family = "gunfire", name = "Incidents of gunfire" }
+geography = { level = "citywide" }
+window = { kind = "vs_five_year_average", current_start = 2025-01-01, current_end = 2025-12-19 }
+assertion = { kind = "change", direction = "down", stated_pct = -30.0, bound = "at_least" }
+cluster = "gunfire:citywide:2025"
+notes = ["The open data's closest measure is the crime table's SHOOTING flag, which changed meaning in 2019 (LIM-SHOOTINGS-VS-VICTIMS)."]
+
+[[claim]]
+id = "hand-bostongov-20251219-downtown-violent"
+source = "bostongov-2025-12-19"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said violent crime downtown declined 24% in 2025."
+measure = { family = "part_one_violent", name = "Violent crime" }
+geography = { level = "neighborhood", unit = "Downtown" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-12-19, prior_start = 2024-01-01, prior_end = 2024-12-19 }
+assertion = { kind = "change", direction = "down", stated_pct = -24.0 }
+cluster = "violent:downtown:2025"
+notes = ["'Downtown' has no official boundary in the snapshot: it spans parts of district A1 and several city neighborhoods."]
+
+[[claim]]
+id = "hand-bostongov-20251219-masscass-violent"
+source = "bostongov-2025-12-19"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said violent crime around Massachusetts Avenue and Melnea Cass Boulevard fell 8% year to date against 2024."
+measure = { family = "part_one_violent", name = "Violent crime" }
+geography = { level = "neighborhood", unit = "Mass Ave and Melnea Cass Blvd area" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-12-19, prior_start = 2024-01-01, prior_end = 2024-12-19 }
+assertion = { kind = "change", direction = "down", stated_pct = -8.0 }
+cluster = "violent:mass-cass:2025"
+notes = ["The area has no official boundary; any check has to choose one, which is itself a spec choice."]
+
+[[claim]]
+id = "hand-bostongov-20251219-masscass-property"
+source = "bostongov-2025-12-19"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said property crime around Massachusetts Avenue and Melnea Cass Boulevard fell 10% year to date against 2024."
+measure = { family = "part_one_property", name = "Property crime" }
+geography = { level = "neighborhood", unit = "Mass Ave and Melnea Cass Blvd area" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-12-19, prior_start = 2024-01-01, prior_end = 2024-12-19 }
+assertion = { kind = "change", direction = "down", stated_pct = -10.0 }
+cluster = "property:mass-cass:2025"
+
+[[claim]]
+id = "hand-bostongov-20251219-guns-removed"
+source = "bostongov-2025-12-19"
+speaker = "City of Boston (Mayor)"
+paraphrase = "The mayor said police removed 673 guns from city streets in 2025."
+measure = { family = "guns_recovered", name = "Guns removed from streets" }
+geography = { level = "citywide" }
+window = { kind = "period", current_start = 2025-01-01, current_end = 2025-12-19 }
+assertion = { kind = "level", stated_value = 673, rel_tol = 0.05 }
+stated = { level = 673 }
+cluster = "guns:citywide:2025"
+notes = ["firearm_recovery separates crime guns, voluntary surrenders and buybacks; which channels count as 'removed from streets' is a spec choice."]
+
+[[claim]]
+id = "hand-bostongov-20251219-retail-theft-arrests"
+source = "bostongov-2025-12-19"
+speaker = "City of Boston (Mayor)"
+paraphrase = "The mayor said arrests for retail theft rose 113% in 2025."
+measure = { family = "arrests", name = "Retail theft arrests" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-12-19, prior_start = 2024-01-01, prior_end = 2024-12-19 }
+assertion = { kind = "change", direction = "up", stated_pct = 113.0 }
+cluster = "arrests:retail-theft:2025"
+notes = ["Arrests are not in the snapshot."]
+
+# ---------------------------------------------------------------------------
+# WBUR, 2025-12-15
+
+[[claim]]
+id = "hand-wbur-20251215-homicides-31-vs-24"
+source = "wbur-2025-12-15"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said Boston had 31 homicides so far in 2025, up from 2024's historic low of 24."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "period_vs_period", current_start = 2025-01-01, current_end = 2025-12-15, prior_start = 2024-01-01, prior_end = 2024-12-31 }
+assertion = { kind = "change", direction = "up", stated_pct = 29.2 }
+stated = { prior = 24, current = 31 }
+cluster = "homicide:citywide:2025"
+notes = ["Compares 2025 to date against all of 2024. The percent is computed from the stated counts."]
+
+# ---------------------------------------------------------------------------
+# GBH News, 2025-12-15
+
+[[claim]]
+id = "hand-gbh-20251215-safest-major-city"
+source = "gbh-2025-12-15"
+speaker = "City of Boston (Mayor)"
+paraphrase = "The mayor said Boston is the safest major city in the country."
+measure = { family = "other", name = "Overall safety (metric not stated)" }
+geography = { level = "cross_city" }
+window = { kind = "unspecified" }
+assertion = { kind = "rank", stated_rank = 1 }
+cluster = "cross-city:safest"
+notes = ["No metric, comparison set or period is given; GBH reports the source of the claim was unclear."]
+
+[[claim]]
+id = "hand-gbh-20251215-second-lowest-20yr"
+source = "gbh-2025-12-15"
+paraphrase = "GBH reported that Boston's 31 homicides so far in 2025 were the second-lowest total in the last 20 years."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "period", current_start = 2025-01-01, current_end = 2025-12-15, reference_years = [2006, 2025] }
+assertion = { kind = "rank", stated_rank = 2 }
+stated = { current = 31 }
+cluster = "homicide:citywide:2025"
+notes = ["Ranking against 2006 onward needs years the snapshot does not have (it starts in 2012)."]
+
+[[claim]]
+id = "hand-gbh-20251215-mcca-lower-rates"
+source = "gbh-2025-12-15"
+paraphrase = "GBH reported that Major Cities Chiefs Association data through September 2025 showed at least nine cities with lower per-capita homicide rates than Boston."
+measure = { family = "part_one_offense", name = "Homicide rate per capita" }
+geography = { level = "cross_city" }
+window = { kind = "period", current_start = 2025-01-01, current_end = 2025-09-30 }
+assertion = { kind = "rank", stated_rank = 10, tolerance = 0 }
+cluster = "cross-city:safest"
+notes = ["Cities named: San Francisco, Honolulu, El Paso, Fresno, Omaha, Tampa, Orlando, Salt Lake City, Mesa. 'At least nine lower' is encoded as rank 10; the true rank could be lower."]
+
+# ---------------------------------------------------------------------------
+# GBH News, 2024-10-07
+
+[[claim]]
+id = "hand-gbh-20241007-safest-major-city"
+source = "gbh-2024-10-07"
+speaker = "City of Boston (Mayor)"
+paraphrase = "The mayor said in June 2024 that Boston is the safest major city in the country."
+measure = { family = "other", name = "Overall safety (metric not stated)" }
+geography = { level = "cross_city" }
+window = { kind = "unspecified" }
+assertion = { kind = "rank", stated_rank = 1 }
+cluster = "cross-city:safest"
+
+[[claim]]
+id = "hand-gbh-20241007-mcca-4-vs-18"
+source = "gbh-2024-10-07"
+speaker = "Major Cities Chiefs Association (as reported by GBH)"
+paraphrase = "GBH reported that Major Cities Chiefs Association data through June 30, 2024 showed 4 homicides in Boston, against 18 at the same point in 2023."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2024-01-01, current_end = 2024-06-30, prior_start = 2023-01-01, prior_end = 2023-06-30 }
+assertion = { kind = "change", direction = "down", stated_pct = -77.8 }
+stated = { prior = 18, current = 4 }
+cluster = "homicide:citywide:2024"
+notes = ["Percent computed from the stated counts."]
+
+[[claim]]
+id = "hand-gbh-20241007-fbi-rank-9"
+source = "gbh-2024-10-07"
+paraphrase = "GBH reported that on 2023 FBI data Boston's murder rate was lower than most of the 50 largest US cities, with eight cities lower."
+measure = { family = "part_one_offense", name = "Homicide rate per capita" }
+geography = { level = "cross_city" }
+window = { kind = "period", current_start = 2023-01-01, current_end = 2023-12-31 }
+assertion = { kind = "rank", stated_rank = 9 }
+cluster = "cross-city:homicide-rate:2023"
+notes = ["Rank 9 is implied by 'eight other cities had even lower rates'; the article does not state a rank."]
+
+[[claim]]
+id = "hand-gbh-20241007-fbi-rate-2023"
+source = "gbh-2024-10-07"
+paraphrase = "GBH reported that Boston's 2023 murder rate on FBI data was 5.29 per 100,000 residents."
+measure = { family = "part_one_offense", name = "Homicide rate per 100,000" }
+geography = { level = "citywide" }
+window = { kind = "period", current_start = 2023-01-01, current_end = 2023-12-31 }
+assertion = { kind = "level", stated_value = 5.29, rel_tol = 0.05 }
+stated = { level = 5.29 }
+cluster = "homicide:citywide:2023"
+notes = ["A rate needs a population denominator, which the snapshot does not yet have (LIM-CENSUS-UNDERCOUNT)."]
+
+[[claim]]
+id = "hand-gbh-20241007-violent-rank-16"
+source = "gbh-2024-10-07"
+paraphrase = "GBH reported that on 2023 data Boston ranked 16th safest of the 50 largest US cities for all violent crime."
+measure = { family = "part_one_violent", name = "Violent crime rate per capita" }
+geography = { level = "cross_city" }
+window = { kind = "period", current_start = 2023-01-01, current_end = 2023-12-31 }
+assertion = { kind = "rank", stated_rank = 16 }
+cluster = "cross-city:violent-rate:2023"
+
+# ---------------------------------------------------------------------------
+# WBUR, 2024-12-27
+
+[[claim]]
+id = "hand-wbur-20241227-homicides-down-third"
+source = "wbur-2024-12-27"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "WBUR reported 24 homicides in Boston in 2024, down one-third from the year before."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "period_vs_period", current_start = 2024-01-01, current_end = 2024-12-27, prior_start = 2023-01-01, prior_end = 2023-12-31 }
+assertion = { kind = "change", direction = "down", stated_pct = -33.3 }
+stated = { current = 24 }
+cluster = "homicide:citywide:2024"
+
+[[claim]]
+id = "hand-wbur-20241227-violent-down-2"
+source = "wbur-2024-12-27"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said violent crime in Boston fell 2% in 2024."
+measure = { family = "part_one_violent", name = "Violent crime" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2024-01-01, current_end = 2024-12-27, prior_start = 2023-01-01, prior_end = 2023-12-27 }
+assertion = { kind = "change", direction = "down", stated_pct = -2.0 }
+cluster = "violent:citywide:2024"
+
+[[claim]]
+id = "hand-wbur-20241227-major-crime-up-1"
+source = "wbur-2024-12-27"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "WBUR reported that major crime overall in Boston ticked up 1% in 2024, driven by aggravated assaults, commercial burglaries and larcenies."
+measure = { family = "part_one_total", name = "Major crime (Part One)" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2024-01-01, current_end = 2024-12-27, prior_start = 2023-01-01, prior_end = 2023-12-27 }
+assertion = { kind = "change", direction = "flat", stated_pct = 1.0 }
+cluster = "part-one:citywide:2024"
+notes = ["A 1% change sits inside the flat band, so the claim is encoded as flat."]
+
+# ---------------------------------------------------------------------------
+# Boston.com, 2024-12-29
+
+[[claim]]
+id = "hand-bostoncom-20241229-lowest-since-1957"
+source = "bostoncom-2024-12-29"
+speaker = "City of Boston (Mayor)"
+paraphrase = "City officials said Boston's 24 homicides in 2024 were the fewest since 1957."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "period", current_start = 2024-01-01, current_end = 2024-12-29, reference_years = [1957, 2024] }
+assertion = { kind = "rank", stated_rank = 1 }
+stated = { current = 24 }
+cluster = "homicide:citywide:2024"
+notes = ["Ranking against 1957 onward needs decades the snapshot does not have."]
+
+[[claim]]
+id = "hand-bostoncom-20241229-gunfire-down-14"
+source = "bostoncom-2024-12-29"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said gunfire incidents were down 14% in 2024 compared with 2023."
+measure = { family = "gunfire", name = "Instances of gunfire" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2024-01-01, current_end = 2024-12-29, prior_start = 2023-01-01, prior_end = 2023-12-29 }
+assertion = { kind = "change", direction = "down", stated_pct = -14.0 }
+cluster = "gunfire:citywide:2024"
+
+[[claim]]
+id = "hand-bostoncom-20241229-gunfire-vs-5yr"
+source = "bostoncom-2024-12-29"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said 2024 gunfire incidents were 37% below the five-year average."
+measure = { family = "gunfire", name = "Instances of gunfire" }
+geography = { level = "citywide" }
+window = { kind = "vs_five_year_average", current_start = 2024-01-01, current_end = 2024-12-29 }
+assertion = { kind = "change", direction = "down", stated_pct = -37.0 }
+cluster = "gunfire:citywide:2024"
+
+[[claim]]
+id = "hand-bostoncom-20241229-under-200-victims"
+source = "bostoncom-2024-12-29"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "The police commissioner said 2024 was the third straight year with fewer than 200 shooting victims."
+measure = { family = "shootings", name = "Shooting victims per year", shooting_measure = "victims_struck" }
+geography = { level = "citywide" }
+window = { kind = "period", current_start = 2022-01-01, current_end = 2024-12-29 }
+assertion = { kind = "comparison", direction = "less", margin = 0 }
+cluster = "shooting-victims:citywide:2024"
+notes = ["Asserts each of 2022, 2023 and 2024 was under 200: the compared value is the largest annual count in the period minus 200."]
+
+[[claim]]
+id = "hand-bostoncom-20241229-agg-assault-up-3"
+source = "bostoncom-2024-12-29"
+paraphrase = "Boston.com reported that aggravated assaults in Boston were up 3% in 2024."
+measure = { family = "part_one_offense", name = "Aggravated assault" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2024-01-01, current_end = 2024-12-29, prior_start = 2023-01-01, prior_end = 2023-12-29 }
+assertion = { kind = "change", direction = "up", stated_pct = 3.0 }
+cluster = "agg-assault:citywide:2024"
+notes = ["The article says the count includes domestic assault; BPD's reports split domestic and non-domestic aggravated assault."]
+
+# ---------------------------------------------------------------------------
+# Boston.com, 2026-01-12
+
+[[claim]]
+id = "hand-bostoncom-20260112-homicides-up-30"
+source = "bostoncom-2026-01-12"
+speaker = "Boston Police Department (Commissioner)"
+paraphrase = "Boston.com reported that Boston's homicides rose 30% in 2025, from 24 to 31."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "calendar_year", current_start = 2025-01-01, current_end = 2025-12-31, prior_start = 2024-01-01, prior_end = 2024-12-31 }
+assertion = { kind = "change", direction = "up", stated_pct = 30.0 }
+stated = { prior = 24, current = 31, printed_pct = 30.0 }
+cluster = "homicide:citywide:2025"
+notes = ["The article notes three of the 31 were ruled homicides in 2025 but occurred in earlier years."]
+
+[[claim]]
+id = "hand-bostoncom-20260112-gun-homicides-19"
+source = "bostoncom-2026-01-12"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "Boston.com reported that 19 of Boston's 31 homicide victims in 2025 were victims of gun violence."
+measure = { family = "shootings", name = "Homicide victims of gun violence", shooting_measure = "fatal_only" }
+geography = { level = "citywide" }
+window = { kind = "period", current_start = 2025-01-01, current_end = 2025-12-31 }
+assertion = { kind = "level", stated_value = 19, abs_tol = 0 }
+stated = { level = 19 }
+cluster = "shooting-fatal:citywide:2025"
+
+[[claim]]
+id = "hand-bostoncom-20260112-survived-over-100"
+source = "bostoncom-2026-01-12"
+paraphrase = "Boston.com reported that more than 100 people were shot in Boston in 2025 and survived."
+measure = { family = "shootings", name = "Non-fatal shooting victims", shooting_measure = "non_fatal_only" }
+geography = { level = "citywide" }
+window = { kind = "period", current_start = 2025-01-01, current_end = 2025-12-31 }
+assertion = { kind = "comparison", direction = "greater", margin = 0 }
+cluster = "shooting-victims:citywide:2025"
+notes = ["The compared value is the count minus 100."]
+
+[[claim]]
+id = "hand-bostoncom-20260112-domestic-agg-above-avg"
+source = "bostoncom-2026-01-12"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "Boston.com reported that most violent crimes in 2025 were below their five-year averages, except domestic aggravated assault."
+measure = { family = "part_one_offense", name = "Domestic Aggravated Assault" }
+geography = { level = "citywide" }
+window = { kind = "vs_five_year_average", current_start = 2025-01-01, current_end = 2025-12-31 }
+assertion = { kind = "change", direction = "up" }
+cluster = "agg-assault:citywide:2025"
+notes = ["The open data does not separate domestic from non-domestic aggravated assault."]
+
+# ---------------------------------------------------------------------------
+# The Boston Globe, 2025-08-15
+
+[[claim]]
+id = "hand-globe-20250815-homicides-24-vs-12"
+source = "globe-2025-08-15"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "The Globe reported 24 homicides in Boston through Aug. 13, 2025, double the 12 at the same point in 2024."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-08-13, prior_start = 2024-01-01, prior_end = 2024-08-13 }
+assertion = { kind = "change", direction = "up", stated_pct = 100.0 }
+stated = { prior = 12, current = 24 }
+cluster = "homicide:citywide:2025"
+notes = ["Three of the 2025 deaths were ruled homicides in 2025 but occurred in earlier years, per the article."]
+
+[[claim]]
+id = "hand-globe-20250815-violent-down-10"
+source = "globe-2025-08-15"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "The Globe reported that Part 1 violent crime in Boston was down nearly 10% through Aug. 10, 2025, against the same period of 2024."
+measure = { family = "part_one_violent", name = "Part 1 violent crime" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-08-10, prior_start = 2024-01-01, prior_end = 2024-08-10 }
+assertion = { kind = "change", direction = "down", stated_pct = -10.0 }
+cluster = "violent:citywide:2025"
+notes = ["The article lists sexual assaults among the violent crimes counted; the open data has none (LIM-EXCLUDED-OFFENSES)."]
+
+[[claim]]
+id = "hand-globe-20250815-property-down-3"
+source = "globe-2025-08-15"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "The Globe reported that property crime in Boston was down 3% through Aug. 10, 2025, against the same period of 2024."
+measure = { family = "part_one_property", name = "Property crime" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-08-10, prior_start = 2024-01-01, prior_end = 2024-08-10 }
+assertion = { kind = "change", direction = "down", stated_pct = -3.0 }
+cluster = "property:citywide:2025"
+
+[[claim]]
+id = "hand-globe-20250815-nonfatal-victims"
+source = "globe-2025-08-15"
+speaker = "Boston Police Department (records)"
+paraphrase = "The Globe reported that people wounded in non-fatal shootings fell 14% through Aug. 10, 2025: 60 against 74 a year earlier."
+measure = { family = "shootings", name = "Non-fatal shooting victims", shooting_measure = "non_fatal_only" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-08-10, prior_start = 2024-01-01, prior_end = 2024-08-10 }
+assertion = { kind = "change", direction = "down", stated_pct = -14.0 }
+stated = { prior = 74, current = 60, printed_pct = -14.0 }
+source_checks_failed = ["printed_pct: the article's counts (74 to 60) give -18.9%, it prints 14 percent"]
+cluster = "shooting-nonfatal:citywide:2025"
+
+[[claim]]
+id = "hand-globe-20250815-shootings-64-vs-67"
+source = "globe-2025-08-15"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "The Globe reported that fatal and non-fatal shootings fell 3% through Aug. 10, 2025: 64 against 67 a year earlier."
+measure = { family = "shootings", name = "Fatal and non-fatal shootings" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-08-10, prior_start = 2024-01-01, prior_end = 2024-08-10 }
+assertion = { kind = "change", direction = "down", stated_pct = -3.0 }
+stated = { prior = 67, current = 64, printed_pct = -3.0 }
+source_checks_failed = ["printed_pct: the article's counts (67 to 64) give -4.5%, it prints 3 percent"]
+cluster = "shootings:citywide:2025"
+notes = ["'Shootings' is not specified as incidents or victims (LIM-SHOOTINGS-VS-VICTIMS)."]
+
+[[claim]]
+id = "hand-globe-20250815-b2-b3-homicides"
+source = "globe-2025-08-15"
+speaker = "Boston Police Department (records)"
+paraphrase = "The Globe reported that police districts B-2 and B-3 together had 13 homicides through Aug. 10, 2025, up from 5 a year earlier."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "district_group", unit = "B-2 + B-3", code = "B2+B3" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-08-10, prior_start = 2024-01-01, prior_end = 2024-08-10 }
+assertion = { kind = "change", direction = "up", stated_pct = 160.0 }
+stated = { prior = 5, current = 13 }
+cluster = "homicide:b2-b3:2025"
+notes = ["Percent computed from the stated counts; small counts (LIM-SMALL-N)."]
+
+[[claim]]
+id = "hand-globe-20250815-d14-homicides"
+source = "globe-2025-08-15"
+speaker = "Boston Police Department (records)"
+paraphrase = "The Globe reported that police district D-14 had 2 homicides through Aug. 10, 2025, up from none a year earlier."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "district", unit = "D-14", code = "D14" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-08-10, prior_start = 2024-01-01, prior_end = 2024-08-10 }
+assertion = { kind = "change", direction = "up" }
+stated = { prior = 0, current = 2 }
+cluster = "homicide:d14:2025"
+
+# ---------------------------------------------------------------------------
+# NBC Boston, 2026-08-15
+
+[[claim]]
+id = "hand-nbc-20260815-homicides-h1"
+source = "nbc-2026-08-15"
+speaker = "Major Cities Chiefs Association (preliminary data)"
+paraphrase = "NBC Boston reported, citing preliminary Major Cities Chiefs Association data, 10 homicides in Boston in the first half of 2026 against 21 a year earlier."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2026-01-01, current_end = 2026-06-30, prior_start = 2025-01-01, prior_end = 2025-06-30 }
+assertion = { kind = "change", direction = "down", stated_pct = -52.4 }
+stated = { prior = 21, current = 10 }
+cluster = "homicide:citywide:2026"
+notes = ["Percent computed from the stated counts."]
+
+[[claim]]
+id = "hand-nbc-20260815-agg-assault-up-h1"
+source = "nbc-2026-08-15"
+speaker = "Major Cities Chiefs Association (preliminary data)"
+paraphrase = "NBC Boston reported that aggravated assaults in Boston were up in the first half of 2026 against a year earlier."
+measure = { family = "part_one_offense", name = "Aggravated assault" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2026-01-01, current_end = 2026-06-30, prior_start = 2025-01-01, prior_end = 2025-06-30 }
+assertion = { kind = "change", direction = "up" }
+cluster = "agg-assault:citywide:2026"
+
+[[claim]]
+id = "hand-nbc-20260815-robbery-down-h1"
+source = "nbc-2026-08-15"
+speaker = "Major Cities Chiefs Association (preliminary data)"
+paraphrase = "NBC Boston reported that robberies in Boston were down in the first half of 2026 against a year earlier."
+measure = { family = "part_one_offense", name = "Robbery" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2026-01-01, current_end = 2026-06-30, prior_start = 2025-01-01, prior_end = 2025-06-30 }
+assertion = { kind = "change", direction = "down" }
+cluster = "robbery:citywide:2026"
+
+[[claim]]
+id = "hand-nbc-20260815-rape-down-h1"
+source = "nbc-2026-08-15"
+speaker = "Major Cities Chiefs Association (preliminary data)"
+paraphrase = "NBC Boston reported that rapes in Boston were down in the first half of 2026 against a year earlier."
+measure = { family = "part_one_offense", name = "Rape" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2026-01-01, current_end = 2026-06-30, prior_start = 2025-01-01, prior_end = 2025-06-30 }
+assertion = { kind = "change", direction = "down" }
+cluster = "rape:citywide:2026"
+notes = ["The open data contains no rape records (LIM-EXCLUDED-OFFENSES)."]
+
+# ---------------------------------------------------------------------------
+# Boston Herald (via Police1), 2025-12-06
+
+[[claim]]
+id = "hand-herald-20251206-homicides-up-36"
+source = "herald-2025-12-06"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "The Herald reported, citing BPD statistics, 30 homicides in Boston through Nov. 23, 2025, up 36% from 22 at the same point in 2024."
+measure = { family = "part_one_offense", name = "Homicide" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-11-23, prior_start = 2024-01-01, prior_end = 2024-11-23 }
+assertion = { kind = "change", direction = "up", stated_pct = 36.0 }
+stated = { prior = 22, current = 30, printed_pct = 36.0 }
+cluster = "homicide:citywide:2025"
+
+[[claim]]
+id = "hand-herald-20251206-shootings-116-vs-120"
+source = "herald-2025-12-06"
+speaker = "Boston Police Department (statistics)"
+paraphrase = "The Herald reported, citing BPD statistics, 116 shootings in Boston through Nov. 23, 2025, against 120 at the same point in 2024 and a five-year average of 173."
+measure = { family = "shootings", name = "Total shootings" }
+geography = { level = "citywide" }
+window = { kind = "ytd_vs_prior_ytd", current_start = 2025-01-01, current_end = 2025-11-23, prior_start = 2024-01-01, prior_end = 2024-11-23 }
+assertion = { kind = "change", direction = "down", stated_pct = -3.3 }
+stated = { prior = 120, current = 116, five_year_avg = 173 }
+cluster = "shootings:citywide:2025"
+notes = ["'Shootings' may be victims or incidents (LIM-SHOOTINGS-VS-VICTIMS). Percent computed from the stated counts."]
+
+# ---------------------------------------------------------------------------
+# CBS News Boston, 2026-07-06
+
+[[claim]]
+id = "hand-cbs-20260706-weekend-13-shot"
+source = "cbs-2026-07-06"
+paraphrase = "CBS Boston reported that 13 people were shot in Roxbury and Dorchester over the July 4 weekend of 2026, two of them fatally, in five shootings."
+measure = { family = "shootings", name = "People shot", shooting_measure = "victims_struck" }
+geography = { level = "neighborhood", unit = "Roxbury and Dorchester" }
+window = { kind = "period", current_start = 2026-07-03, current_end = 2026-07-05 }
+assertion = { kind = "level", stated_value = 13, abs_tol = 0 }
+stated = { level = 13 }
+cluster = "shootings:roxbury-dorchester:2026-07"
+notes = ["The article does not give exact dates; the window is the weekend before publication (Friday to Sunday)."]

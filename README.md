@@ -29,7 +29,7 @@ notice?**
 
 ## Status
 
-365 tests, all offline (no network, no API keys, no data snapshot required).
+384 tests, all offline (no network, no API keys, no data snapshot required).
 Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 
 - [x] Feasibility check on claim sourcing (ClaimBench §0)
@@ -43,7 +43,7 @@ Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 - [x] Limitations corpus — 15 documented data pitfalls with stable IDs (`corpus/limitations/`)
 - [ ] `specs/compute.py` evaluator
 - [x] BPD weekly reports scraped and extracted — 305 reports, 113k figures (`claims/`)
-- [x] Claim corpus v0.1.0 — 108 BPD claims (`claims/corpus/`); hand-sourced claims still to come
+- [x] Claim corpus v0.2.0 — 151 claims: 108 from BPD reports, 43 hand-sourced from news and official statements (`claims/corpus/`)
 - [ ] Agent loop and tool surface — `env/tools.py`, `env/loop.py`
 
 ### What the spec curve does

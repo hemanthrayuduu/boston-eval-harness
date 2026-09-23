@@ -124,6 +124,21 @@ class TestAssertions:
     def test_change_with_stated_magnitude(self, value: float, expected: bool) -> None:
         assert ChangeAssertion(direction="up", stated_pct=30.0).holds(value) is expected
 
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [(-37.0, True), (-30.0, True), (-29.0, False), (-5.0, False), (12.0, False)],
+    )
+    def test_change_stated_as_a_lower_bound(self, value: float, expected: bool) -> None:
+        """'Down more than 30%': a true 37% drop vindicates it, which a point
+        estimate with a 5-point tolerance would not."""
+        claim = ChangeAssertion(direction="down", stated_pct=-30.0, bound="at_least")
+        assert claim.holds(value) is expected
+
+    @pytest.mark.parametrize(("value", "expected"), [(3.0, True), (5.0, True), (9.0, False), (-2.0, False)])
+    def test_change_stated_as_an_upper_bound(self, value: float, expected: bool) -> None:
+        claim = ChangeAssertion(direction="up", stated_pct=5.0, bound="at_most")
+        assert claim.holds(value) is expected
+
     @pytest.mark.parametrize("value,expected", [(0.5, False), (5.0, True), (-5.0, False)])
     def test_change_direction_only(self, value: float, expected: bool) -> None:
         # No stated magnitude: only the sign has to hold, outside the flat band.
