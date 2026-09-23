@@ -4,7 +4,7 @@ Where the project stands, and what to do next. This is the working checklist.
 `ROADMAP-CLAIMBENCH.md` is the design; this file tracks progress against it.
 Update it at the end of every work session.
 
-**Last updated:** 2026-09-22 · **Branch:** `claude/eval-harness-roadmap-review-yr1bxk` (not merged to `main`)
+**Last updated:** 2026-09-23 · **Branch:** `claude/eval-harness-roadmap-review-yr1bxk` (not merged to `main`)
 
 ---
 
@@ -13,16 +13,16 @@ Update it at the end of every work session.
 | | |
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
-| Code | ~2.8k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.3k LOC of tests |
-| Tests | **251, all passing on macOS** (2026-09-22). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
-| Data | None pulled yet. No `data/`, no `manifest.json`, no DuckDB file. |
+| Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
+| Tests | **260, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Data | **First live pull done 2026-09-23:** 53 resources, 2,262,297 rows, 54 MB Parquet in `data/raw/` (gitignored). `data/manifest.json` committed but unsealed. No DuckDB file yet (needs B5). See §4a. |
 | Claims | None. No `claims/` directory. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
 | CI | None. No `.github/workflows/`. |
 
 **In one line:** the parts that need no data and no LLM are built and tested: guard, sandbox, run
-identity, spec-curve engine, trace schema, pure scorer, CKAN ingest, and DB build. Nothing has run
-against real data or a real model yet.
+identity, spec-curve engine, trace schema, pure scorer, CKAN ingest, and DB build. Real data is now
+on disk. Nothing has run against a real model yet.
 
 Hitting the network was blocked in the environment where the code was written. **It works from
 this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
@@ -35,7 +35,8 @@ this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
 |---|---|---|---|
 | 0 | Project setup | `pyproject.toml` | Partial. Deps pinned. No `uv.lock` (gitignored on purpose), no `.env`, no LiteLLM or Ollama. |
 | 1 | CKAN client, datastore plus direct-download fallback | `ingest/ckan_client.py`, `ingest/http.py` | Done, tested offline against fakes |
-| 1 | Pull to Parquet, seal manifest | `ingest/pull.py` (`python -m ingest.pull`), `ingest/manifest.py` | Done, **never run live** |
+| 1 | Pull to Parquet, seal manifest | `ingest/pull.py` (`python -m ingest.pull`), `ingest/manifest.py` | Done. **Run live** 2026-09-23: 0 failures, 9 alternate renderings skipped and listed |
+| 1 | XLSX parsing (all sheets), fallback when the datastore is empty | `ingest/ckan_client.py` | Done. Needed for the offense-code table and field dictionaries |
 | 1 | Parquet → DuckDB with measured cast loss and dual checksums | `ingest/build_db.py` | Done as a library. **No CLI entry point** (`build_database()` / `seal_manifest()` only) |
 | 1 | Snapshot verification | `ingest/manifest.py::verify_snapshot` | Done as a function. No `verify_snapshot.py` CLI. |
 | 2 | Dimensions with written justifications | `specs/dimensions.py` | Done (measure, window, geography, denominator, offense_set, missing_geo) |
@@ -116,6 +117,46 @@ Also on CKAN and relevant to the spec curve:
 
 ---
 
+## 4a. First live pull (2026-09-23)
+
+`python -m ingest.pull --datasets ingest/catalog.txt --out data/` took 172s, exit 0, peak memory 2.8 GB.
+
+The first attempt with the original code got 50 resources and 12 failures:
+- 3 XLSX data dictionaries are marked datastore-active but serve 0 rows there. Fix: fall back to the file.
+- XLSX wasn't parsed at all. Fix: `fastexcel`, reading every sheet.
+- 8 boundary resources (KML, SHP, ArcGIS, HTML) plus 1 PDF are alternate renderings of CSVs
+  that are already fetched. The boundary CSVs carry geometry as `shape_wkt`. Fix: list them as
+  skipped. A dataset that yields nothing still fails.
+
+Other checks:
+- **Both fetch paths agree:** for `shootings`, the datastore and direct download produce identical
+  content hashes.
+- **Paging is fast:** about 0.7s per 10k rows.
+
+### Data findings (seed for `notes/surprises.md`)
+
+1. **`UCR_PART` and `OFFENSE_CODE_GROUP` are 100% blank from 2019 on** (BPD's move to a new
+   records system). The `offense_set=part_one` spec option can't be read off the row after 2018.
+   It *can* be recovered by code: 219 offense codes seen in 2015–2018 each map to exactly one UCR
+   part, and they cover **97.6% of 2019+ rows**. The other 34 codes (2.4% of rows) need hand
+   mapping. This is the spec for `offense_codes.py`.
+2. **Row grain changes in 2019.** In 2015–2018, rows exceed distinct `INCIDENT_NUMBER`s by about
+   12% (one row per offense). From 2019 on, rows equal incidents. Counting rows versus incidents
+   manufactures a trend break at 2019. That's a candidate for a new spec dimension (count unit)
+   and a limitation doc (`LIM-SCHEMA-BREAK-2019`).
+3. **Timestamp format changes:** `2016-01-01 00:30:00` in older rows versus
+   `2026-09-20 02:41:00+00` in newer ones. `build_db` casts must accept both.
+4. **`SHOOTING` has three encodings:** `0`/`1`, `Y`, and NULL (NULL on 351k rows).
+5. **Bad or missing geo** (null, 0, -1, or out of range) on 2.5–7% of rows per year. District is
+   blank or `External` on under 2%.
+6. **All 9 yearly crime files share one 17-column schema.** Coverage runs from 2015-06-15 to
+   2026-09-20.
+7. **FIO ships as paired contact and person files per year** (28 resources, with names changing
+   across systems: RMS vs Mark43). One XLSX key has no header row, so its first data row became
+   the header.
+
+---
+
 ## 5. Next tasks, in order
 
 Work top-down. Tick boxes and move items to §6 as they land.
@@ -129,13 +170,14 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] **B6**: install `uv`, then `uv sync --extra dev`. Commit to `uv run pytest` as the single entry point.
 
 ### Phase 1: data and claims (the risky track, so start it first)
-- [ ] First live pull: `python -m ingest.pull` into `data/raw/`. Watch for CKAN pagination and format surprises.
-- [ ] `ingest/build_db.py` CLI (`__main__`), plus `TableSpec`s for the core tables
+- [x] First live pull: `python -m ingest.pull` into `data/raw/` (§4a)
+- [ ] `ingest/build_db.py` CLI (`__main__`), plus `TableSpec`s for the core tables. Union the 9 yearly crime files; casts must handle both timestamp formats (§4a #3)
 - [ ] `ingest/verify_snapshot.py` CLI wrapping `manifest.verify_snapshot`
-- [ ] `ingest/offense_codes.py`: crime vs non-crime lookup, dupes normalized in the lookup, originals kept
+- [ ] `ingest/offense_codes.py`: crime vs non-crime lookup, dupes normalized in the lookup, originals kept. **Must include code → UCR part for 2019+** (§4a #1: derive from 2015–18, hand-map the other 34 codes). Source table is `rmsoffensecodes.xlsx` (576 codes, now pulled)
+- [ ] Decide incident vs offense counting grain across the 2019 break (§4a #2). Possibly a new `count_unit` dimension in `specs/dimensions.py`
 - [ ] `ingest/acs_population.py` (Census API, tract level, area-weighted to neighborhood and district). Decide first whether the CKAN population estimates (§4) are enough for denominator #2.
 - [ ] `corpus/limitations/*.md`: 10–14 docs with stable `LIM-*` IDs
-- [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries.
+- [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries (7 seeded in §4a)
 - [ ] `claims/sources/`: scrape the BPD weekly crime-stats archive with dates preserved
 - [ ] `claims/extract.py` and the `claims.jsonl` schema (measure, window, geography, direction, magnitude, source URL, pub date, retrieval date, paraphrase)
 - [ ] Hand-source about 40 claims from GBH, Globe, WBUR, Universal Hub, and council statements
@@ -156,6 +198,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] `harness/runner.py`: async, semaphore, backoff, k rollouts, resumable using `trace.completed_claim_ids`
 - [ ] `harness/cache.py`: keyed on (model, params, prompt) plus `replicate_index` under bypass
 - [ ] **B7**: bound the DuckDB spill directory before running agents at scale
+- [ ] Stream datastore pages to Parquet instead of holding all records in memory (pull peaks at 2.8 GB)
+- [ ] Record skipped resources in the manifest, not just the pull report (needs `MANIFEST_VERSION` 3)
 - [ ] **DoD:** one claim end-to-end; kill and resume with zero duplicate spend
 
 ### Later (see roadmap for details)
@@ -180,7 +224,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | — | `2cf056e` | CKAN ingest with non-datastore fallback (224 tests) |
 | — | `255b634` | build_db with measured cast loss and dual checksums (249 tests) |
 | 2026-09-22 | — | Status review: found B1–B6 and verified the catalog live |
-| 2026-09-22 | (this commit) | Cleanup: portable sandbox memory cap (B1), wheel packages (B2), catalog slugs (B3), README (B4). 251 tests |
+| 2026-09-22 | `5fb3510` | Cleanup: portable sandbox memory cap (B1), wheel packages (B2), catalog slugs (B3), README (B4). 251 tests |
+| 2026-09-23 | (this commit) | First live pull: XLSX parsing, empty-datastore fallback, skip list for alternate renderings. Manifest committed, 7 data findings. 260 tests |
 
 ---
 

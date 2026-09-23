@@ -65,19 +65,54 @@ def test_unparseable_resource_is_reported_not_swallowed(tmp_path) -> None:
     transport = FakeTransport(
         {
             "package_show": package(
-                resource("r1", "Good"), resource("r2", "Spreadsheet", fmt="xlsx")
+                resource("r1", "Good"), resource("r2", "Archive", fmt="zip")
             ),
             "/r1.csv": b"a\n1\n",
-            "/r2.xlsx": b"PK\x03\x04",
+            "/r2.zip": b"PK\x03\x04",
         }
     )
     report = pull(["ds"], tmp_path, transport=transport)
 
     assert len(report.fetched) == 1
     assert len(report.failures) == 1
-    assert "Spreadsheet" in report.failures[0][0]
-    assert "openpyxl" in report.failures[0][1]
+    assert "Archive" in report.failures[0][0]
+    assert "zip" in report.failures[0][1]
     assert "failures:" in report.render()
+
+
+def test_alternate_renderings_are_skipped_not_failed(tmp_path) -> None:
+    """Each boundary dataset ships six ways. Counting the four unparseable ones
+    as failures would make every pull exit non-zero, and a real failure would
+    hide among the expected ones."""
+    transport = FakeTransport(
+        {
+            "package_show": package(
+                resource("r1", "CSV"),
+                resource("r2", "Shapefile", fmt="shp"),
+                resource("r3", "ArcGIS Hub Dataset", fmt="html"),
+            ),
+            "/r1.csv": b"name,shape_wkt\nRoxbury,POLYGON EMPTY\n",
+        }
+    )
+    report = pull(["boundaries"], tmp_path, transport=transport)
+
+    assert report.failures == []
+    assert [fmt for _, fmt in report.skipped] == ["shp", "html"]
+    # Listed, not hidden.
+    assert "skipped" in report.render()
+    assert "Shapefile" in report.render()
+    # Never requested.
+    assert not any("/r2." in url or "/r3." in url for url, _ in transport.calls)
+
+
+def test_dataset_yielding_nothing_is_a_failure_even_if_only_skips(tmp_path) -> None:
+    """The safety net for the skip list: a dataset that ends up contributing no
+    table has failed, whatever the reason each resource was passed over."""
+    transport = FakeTransport(
+        {"package_show": package(resource("r1", "Only a PDF", fmt="pdf"))}
+    )
+    report = pull(["pdf-only"], tmp_path, transport=transport)
+    assert report.failures == [("pdf-only", "no resource could be fetched")]
 
 
 def test_unreachable_dataset_is_reported(tmp_path) -> None:

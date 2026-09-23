@@ -8,8 +8,11 @@ datastore, and lose them without saying so.
 
 from __future__ import annotations
 
+import io
 import json
 import random
+import zipfile
+from xml.sax.saxutils import escape
 
 import pytest
 
@@ -55,6 +58,71 @@ class FakeTransport:
 
 def ckan_ok(result: object) -> dict:
     return {"success": True, "result": result}
+
+
+def xlsx(sheets: dict[str, list[list[str]]]) -> bytes:
+    """A minimal workbook, built by hand so the tests need no XLSX writer.
+
+    Inline strings only; an empty row list gives an empty sheet.
+    """
+    def sheet_xml(rows: list[list[str]]) -> str:
+        body = "".join(
+            f'<row r="{r}">'
+            + "".join(
+                f'<c r="{chr(65 + c)}{r}" t="inlineStr"><is><t>{escape(v)}</t></is></c>'
+                for c, v in enumerate(row)
+            )
+            + "</row>"
+            for r, row in enumerate(rows, start=1)
+        )
+        return (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            f"<sheetData>{body}</sheetData></worksheet>"
+        )
+
+    rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    names = list(sheets)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr(
+            "[Content_Types].xml",
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            + "".join(
+                f'<Override PartName="/xl/worksheets/sheet{i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+                for i in range(1, len(names) + 1)
+            )
+            + "</Types>",
+        )
+        z.writestr(
+            "_rels/.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            f'<Relationship Id="rId1" Type="{rel}/officeDocument" Target="xl/workbook.xml"/>'
+            "</Relationships>",
+        )
+        z.writestr(
+            "xl/workbook.xml",
+            f'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="{rel}"><sheets>'
+            + "".join(
+                f'<sheet name="{escape(n)}" sheetId="{i}" r:id="rId{i}"/>'
+                for i, n in enumerate(names, start=1)
+            )
+            + "</sheets></workbook>",
+        )
+        z.writestr(
+            "xl/_rels/workbook.xml.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            + "".join(
+                f'<Relationship Id="rId{i}" Type="{rel}/worksheet" Target="worksheets/sheet{i}.xml"/>'
+                for i in range(1, len(names) + 1)
+            )
+            + "</Relationships>",
+        )
+        for i, n in enumerate(names, start=1):
+            z.writestr(f"xl/worksheets/sheet{i}.xml", sheet_xml(sheets[n]))
+    return buffer.getvalue()
 
 
 class TestRetry:
@@ -205,11 +273,33 @@ class TestFallbackPath:
             )
 
     def test_unsupported_format_names_itself(self) -> None:
-        client = CkanClient(FakeTransport({"/f.xlsx": b"PK\x03\x04"}))
-        with pytest.raises(UnsupportedFormat, match="openpyxl"):
+        client = CkanClient(FakeTransport({"/f.zip": b"PK\x03\x04"}))
+        with pytest.raises(UnsupportedFormat, match="'parcels' is zip"):
             client.fetch_resource(
-                ResourceRef("r1", "assess", "xlsx", "http://x/f.xlsx", datastore_active=False)
+                ResourceRef("r1", "parcels", "zip", "http://x/f.zip", datastore_active=False)
             )
+
+    def test_empty_datastore_table_falls_back_to_the_file(self) -> None:
+        """Analyze Boston marks its XLSX data dictionaries datastore-active and
+        serves them there with zero rows. The file behind them is the data."""
+        transport = FakeTransport(
+            {"datastore_search": ckan_ok({"records": []}), "/f.csv": b"code,name\n612,LARCENY\n"}
+        )
+        fetched = CkanClient(transport).fetch_resource(
+            ResourceRef("r1", "codes", "csv", "http://x/f.csv", datastore_active=True)
+        )
+        assert fetched.source == "direct_download"
+        assert fetched.row_count == 1
+
+    def test_empty_datastore_table_without_a_file_stays_empty(self) -> None:
+        """Nothing to fall back to: return the empty frame and let the pull report
+        it as empty, rather than inventing an error about a missing URL."""
+        transport = FakeTransport({"datastore_search": ckan_ok({"records": []})})
+        fetched = CkanClient(transport).fetch_resource(
+            ResourceRef("r1", "x", "csv", "", datastore_active=True)
+        )
+        assert fetched.source == "datastore"
+        assert fetched.row_count == 0
 
     def test_resource_without_url_is_an_error_not_an_empty_frame(self) -> None:
         client = CkanClient(FakeTransport({}))
@@ -232,6 +322,52 @@ class TestFallbackPath:
         )
         assert fetched.row_count == 2
         assert set(fetched.columns) == {"name", "id"}
+
+
+class TestSpreadsheets:
+    def fetch(self, workbook: bytes):
+        client = CkanClient(FakeTransport({"/f.xlsx": workbook}))
+        return client.fetch_resource(
+            ResourceRef("r1", "codes", "xlsx", "http://x/f.xlsx", datastore_active=False)
+        )
+
+    def test_single_sheet_reads_as_strings(self) -> None:
+        fetched = self.fetch(xlsx({"codes": [["CODE", "NAME"], ["0612", "LARCENY"]]}))
+        assert fetched.source == "direct_download"
+        assert fetched.columns == ("CODE", "NAME")
+        # Leading zero kept: typing belongs in build_db.
+        assert fetched.frame.row(0) == ("0612", "LARCENY")
+
+    def test_every_sheet_is_kept_and_labelled(self) -> None:
+        """The FIO field keys split contact and person tables across sheets.
+        Reading only the first would drop the second without a trace."""
+        fetched = self.fetch(
+            xlsx(
+                {
+                    "FieldContact": [["field", "meaning"], ["fc_num", "contact id"]],
+                    "FieldContact_Name": [["field", "meaning", "note"], ["sex", "sex", "x"]],
+                }
+            )
+        )
+        frame = fetched.frame
+        assert frame.columns == ["_sheet", "field", "meaning", "note"]
+        assert frame["_sheet"].to_list() == ["FieldContact", "FieldContact_Name"]
+        assert frame["note"].to_list() == [None, "x"]
+
+    def test_empty_sheets_are_dropped(self) -> None:
+        fetched = self.fetch(
+            xlsx({"Sheet1": [["a"], ["1"]], "Sheet2": [], "Sheet3": []})
+        )
+        assert fetched.columns == ("a",)
+        assert fetched.row_count == 1
+
+    def test_workbook_with_no_data_is_empty_not_an_error(self) -> None:
+        assert self.fetch(xlsx({"Sheet1": []})).row_count == 0
+
+    def test_corrupt_workbook_is_a_ckan_error(self) -> None:
+        """Raised as CkanError so the pull records it as a failure and moves on."""
+        with pytest.raises(CkanError, match="spreadsheet"):
+            self.fetch(b"PK\x03\x04 not really a workbook")
 
 
 class TestParsingPreservesMess:

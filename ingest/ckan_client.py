@@ -40,10 +40,11 @@ __all__ = [
 DEFAULT_BASE_URL = "https://data.boston.gov"
 DATASTORE_PAGE_SIZE = 10_000
 
-# Formats we can parse without extra dependencies. XLSX needs openpyxl and is
-# reported as unsupported rather than silently skipped.
+# Formats this client parses. Anything else is raised as UnsupportedFormat
+# rather than silently skipped.
 _CSV_FORMATS = frozenset({"csv", "text/csv", "tsv"})
 _JSON_FORMATS = frozenset({"json", "geojson", "application/json"})
+_XLSX_FORMATS = frozenset({"xlsx", "xls"})
 
 
 class CkanError(Exception):
@@ -166,6 +167,37 @@ def _parse_json(data: bytes) -> pl.DataFrame:
     return _frame_from_records(records)
 
 
+def _parse_xlsx(data: bytes) -> pl.DataFrame:
+    """Every non-empty sheet, as strings.
+
+    Reading only the first sheet would drop the rest without a trace -- on Analyze
+    Boston the FIO field keys put the contact and the person tables on separate
+    sheets. With more than one sheet the rows are stacked and a ``_sheet`` column
+    says which each came from; columns missing from a sheet are null.
+    """
+    import fastexcel
+
+    try:
+        reader = fastexcel.read_excel(data)
+    except Exception as err:
+        raise CkanError(f"could not parse spreadsheet: {err}") from err
+
+    sheets = []
+    for name in reader.sheet_names:
+        frame = pl.DataFrame(reader.load_sheet(name, dtypes="string"))
+        if frame.width and not frame.is_empty():
+            sheets.append((name, frame))
+
+    if not sheets:
+        return pl.DataFrame()
+    if len(sheets) == 1:
+        return sheets[0][1]
+    return pl.concat(
+        [frame.select(pl.lit(name).alias("_sheet"), pl.all()) for name, frame in sheets],
+        how="diagonal",
+    )
+
+
 class CkanClient:
     def __init__(self, transport: Transport, base_url: str = DEFAULT_BASE_URL) -> None:
         self.transport = transport
@@ -218,17 +250,22 @@ class CkanClient:
 
         Tries the datastore when CKAN says it is active, and falls back to
         downloading the file if that turns out to be a lie -- ``datastore_active``
-        can be stale, and a 404 there is a routing signal, not a failure.
+        can be stale, and a 404 there is a routing signal, not a failure. So is an
+        empty datastore table with a file behind it: Analyze Boston marks its XLSX
+        data dictionaries datastore-active and serves them there with zero rows.
         """
         if ref.datastore_active:
             try:
-                return self._fetch_via_datastore(ref)
+                fetched = self._fetch_via_datastore(ref)
             except (CkanError, HttpError) as err:
                 status = getattr(err, "status", None)
                 if status is not None and status not in (404, 409):
                     raise
                 if not ref.url:
                     raise
+            else:
+                if fetched.row_count or not ref.url:
+                    return fetched
         return self._fetch_via_download(ref)
 
     def _fetch_via_datastore(self, ref: ResourceRef) -> FetchedResource:
@@ -241,16 +278,21 @@ class CkanClient:
             raise CkanError(f"resource {ref.resource_id!r} has no URL to download")
 
         fmt = ref.format
-        if fmt not in _CSV_FORMATS | _JSON_FORMATS:
+        if fmt not in _CSV_FORMATS | _JSON_FORMATS | _XLSX_FORMATS:
             raise UnsupportedFormat(
                 f"resource {ref.name!r} is {fmt or 'an unknown format'}, which needs "
-                "handling this client does not have (XLSX needs openpyxl; shapefiles "
-                "need a GIS reader). Convert it or add a parser -- do not drop it "
-                "silently, or the catalog quietly shrinks."
+                "handling this client does not have (shapefiles and KML need a GIS "
+                "reader). Convert it or add a parser -- do not drop it silently, or "
+                "the catalog quietly shrinks."
             )
 
         data = self.transport.get(ref.url).body
-        frame = _parse_csv(data) if fmt in _CSV_FORMATS else _parse_json(data)
+        if fmt in _CSV_FORMATS:
+            frame = _parse_csv(data)
+        elif fmt in _JSON_FORMATS:
+            frame = _parse_json(data)
+        else:
+            frame = _parse_xlsx(data)
         return self._finalize(ref, frame, source="direct_download")
 
     @staticmethod
