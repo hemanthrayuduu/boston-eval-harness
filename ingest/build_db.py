@@ -34,7 +34,7 @@ import argparse
 import hashlib
 import re
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -45,6 +45,7 @@ from ingest.manifest import Manifest, file_sha256
 __all__ = [
     "BuildError",
     "TableSpec",
+    "DerivedTable",
     "CastReport",
     "TableReport",
     "BuildReport",
@@ -102,6 +103,25 @@ class TableSpec:
         if isinstance(self.resource_id, str):
             return (self.resource_id,)
         return tuple(self.resource_id)
+
+
+@dataclass(frozen=True)
+class DerivedTable:
+    """A table computed from loaded tables rather than loaded from a resource --
+    the offense-code lookup, which joins crime_incidents with hand labels.
+
+    ``build`` receives the open build connection after every TableSpec has
+    loaded, must create ``table_name``, and raises BuildError to stop the build.
+    """
+
+    table_name: str
+    build: Callable[[duckdb.DuckDBPyConnection], None]
+
+    def __post_init__(self) -> None:
+        if not _SAFE_IDENTIFIER.match(self.table_name):
+            raise BuildError(
+                f"table name {self.table_name!r} must be a plain lowercase identifier"
+            )
 
 
 @dataclass(frozen=True)
@@ -165,7 +185,13 @@ class BuildReport:
             f"  tables  : {len(self.tables)}",
             *(
                 f"    {t.table_name:<28} {t.row_count:>9,} rows"
-                + (f"  ({len(t.resource_ids)} resources)" if len(t.resource_ids) > 1 else "")
+                + (
+                    "  (derived)"
+                    if not t.resource_ids
+                    else f"  ({len(t.resource_ids)} resources)"
+                    if len(t.resource_ids) > 1
+                    else ""
+                )
                 for t in self.tables
             ),
             f"  rows    : {self.total_rows:,}",
@@ -298,16 +324,75 @@ def _measure_casts(
     return tuple(reports)
 
 
+def _load_all(
+    conn: duckdb.DuckDBPyConnection,
+    specs: Sequence[TableSpec],
+    derived: Sequence[DerivedTable],
+    raw: Path,
+    max_cast_loss: float,
+    reports: list[TableReport],
+    violations: list[CastReport],
+) -> None:
+    for spec in specs:
+        parquets = [raw / f"{rid}.parquet" for rid in spec.resource_ids]
+        missing = [p.stem for p in parquets if not p.exists()]
+        if missing:
+            raise BuildError(
+                f"{spec.table_name}: no Parquet for resource(s) {missing} "
+                f"in {raw}. Run ingest.pull first."
+            )
+
+        row_count, columns = _load_table(conn, spec, parquets)
+        casts = _measure_casts(conn, spec, parquets, row_count)
+
+        allowance = spec.max_cast_loss if spec.max_cast_loss is not None else max_cast_loss
+        violations.extend(c for c in casts if c.loss_rate > allowance)
+
+        reports.append(
+            TableReport(
+                table_name=spec.table_name,
+                resource_ids=spec.resource_ids,
+                row_count=row_count,
+                columns=columns,
+                content_digest=_content_digest(conn, spec.table_name),
+                casts=casts,
+            )
+        )
+
+    for table in derived:
+        table.build(conn)
+        quoted = _quote(table.table_name)
+        exists = conn.execute(
+            "SELECT count(*) FROM information_schema.tables WHERE table_name = ?",
+            [table.table_name],
+        ).fetchone()[0]
+        if not exists:
+            raise BuildError(f"derived table {table.table_name!r}: builder did not create it")
+        reports.append(
+            TableReport(
+                table_name=table.table_name,
+                resource_ids=(),
+                row_count=conn.execute(f"SELECT count(*) FROM {quoted}").fetchone()[0],
+                columns=tuple(
+                    r[0] for r in conn.execute(f"SELECT * FROM {quoted} LIMIT 0").description
+                ),
+                content_digest=_content_digest(conn, table.table_name),
+            )
+        )
+
+
 def build_database(
     specs: list[TableSpec],
     raw_dir: str | Path,
     db_path: str | Path,
     *,
+    derived: Sequence[DerivedTable] = (),
     max_cast_loss: float = DEFAULT_MAX_CAST_LOSS,
 ) -> BuildReport:
-    """Load Parquet resources into a fresh DuckDB file.
+    """Load Parquet resources into a fresh DuckDB file, then build derived tables.
 
-    Raises :class:`BuildError` if any cast loses more of a column than allowed.
+    Raises :class:`BuildError` if any cast loses more of a column than allowed,
+    or if a derived table's builder refuses. A failed build leaves no file.
     """
     raw = Path(raw_dir)
     database = Path(db_path)
@@ -316,7 +401,7 @@ def build_database(
     # checksum describe a history rather than a snapshot.
     database.unlink(missing_ok=True)
 
-    names = [spec.table_name for spec in specs]
+    names = [spec.table_name for spec in specs] + [d.table_name for d in derived]
     if len(set(names)) != len(names):
         raise BuildError(f"duplicate table names: {sorted({n for n in names if names.count(n) > 1})}")
 
@@ -325,33 +410,12 @@ def build_database(
 
     conn = duckdb.connect(str(database))
     try:
-        for spec in specs:
-            parquets = [raw / f"{rid}.parquet" for rid in spec.resource_ids]
-            missing = [p.stem for p in parquets if not p.exists()]
-            if missing:
-                raise BuildError(
-                    f"{spec.table_name}: no Parquet for resource(s) {missing} "
-                    f"in {raw}. Run ingest.pull first."
-                )
-
-            row_count, columns = _load_table(conn, spec, parquets)
-            casts = _measure_casts(conn, spec, parquets, row_count)
-
-            allowance = spec.max_cast_loss if spec.max_cast_loss is not None else max_cast_loss
-            violations.extend(c for c in casts if c.loss_rate > allowance)
-
-            reports.append(
-                TableReport(
-                    table_name=spec.table_name,
-                    resource_ids=spec.resource_ids,
-                    row_count=row_count,
-                    columns=columns,
-                    content_digest=_content_digest(conn, spec.table_name),
-                    casts=casts,
-                )
-            )
-    finally:
+        _load_all(conn, specs, derived, raw, max_cast_loss, reports, violations)
+    except BuildError:
         conn.close()
+        database.unlink(missing_ok=True)
+        raise
+    conn.close()
 
     if violations:
         database.unlink(missing_ok=True)
@@ -447,12 +511,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--db", type=Path, default=Path("data/boston.duckdb"))
     args = parser.parse_args(argv)
 
-    from ingest.tables import SNAPSHOT_TABLES, UNUSED_RESOURCES
+    from ingest.tables import SNAPSHOT_DERIVED, SNAPSHOT_TABLES, UNUSED_RESOURCES
 
     manifest = Manifest.read(args.manifest)
     try:
         check_coverage(manifest, SNAPSHOT_TABLES, UNUSED_RESOURCES)
-        report = build_database(list(SNAPSHOT_TABLES), args.raw, args.db)
+        report = build_database(
+            list(SNAPSHOT_TABLES), args.raw, args.db, derived=SNAPSHOT_DERIVED
+        )
     except BuildError as err:
         print(f"build failed: {err}", file=sys.stderr)
         return 1

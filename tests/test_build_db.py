@@ -101,8 +101,10 @@ class TestBuild:
     def test_missing_parquet_names_the_fix(self, raw, tmp_path) -> None:
         with pytest.raises(BuildError, match="Run ingest.pull first"):
             build_database(
-                [TableSpec("shootings", "res-absent")], raw, tmp_path / "b.duckdb"
+                [crime_spec(), TableSpec("shootings", "res-absent")], raw, tmp_path / "b.duckdb"
             )
+        # A half-built file would look like a snapshot missing a table.
+        assert not (tmp_path / "b.duckdb").exists()
 
     def test_cast_on_unknown_column_refused(self, raw, tmp_path) -> None:
         with pytest.raises(BuildError, match="not in the resource"):
@@ -427,6 +429,7 @@ class TestCommandLine:
         manifest = manifest_with("res-crime", "res-pop", "res-messy")
         manifest.write(tmp_path / "manifest.json")
         monkeypatch.setattr(ingest.tables, "SNAPSHOT_TABLES", (crime_spec(),))
+        monkeypatch.setattr(ingest.tables, "SNAPSHOT_DERIVED", ())
         monkeypatch.setattr(
             ingest.tables, "UNUSED_RESOURCES", {"res-pop": "test", "res-messy": "test"}
         )
@@ -473,3 +476,65 @@ class TestCommandLine:
 
         assert verify(["--manifest", str(snapshot / "manifest.json"), "--db", str(snapshot / "x.duckdb")]) == 1
         assert "never sealed" in capsys.readouterr().err
+
+
+class TestDerivedTables:
+    def test_derived_table_is_built_after_loads_and_reported(self, raw, tmp_path) -> None:
+        from ingest.build_db import DerivedTable
+
+        def codes(conn) -> None:
+            conn.execute(
+                "CREATE TABLE code_counts AS "
+                "SELECT OFFENSE_CODE, count(*) AS n FROM crime_incidents GROUP BY 1"
+            )
+
+        database = tmp_path / "b.duckdb"
+        report = build_database(
+            [crime_spec()], raw, database, derived=[DerivedTable("code_counts", codes)]
+        )
+        derived = report.tables[-1]
+        assert derived.table_name == "code_counts"
+        assert derived.resource_ids == ()
+        assert derived.row_count == 3
+        assert "(derived)" in report.render()
+
+    def test_derived_table_changes_the_content_hash(self, raw, tmp_path) -> None:
+        from ingest.build_db import DerivedTable
+
+        plain = build_database([crime_spec()], raw, tmp_path / "1.duckdb")
+        with_derived = build_database(
+            [crime_spec()],
+            raw,
+            tmp_path / "2.duckdb",
+            derived=[DerivedTable("one", lambda c: c.execute("CREATE TABLE one AS SELECT 1 AS x"))],
+        )
+        assert plain.content_sha256 != with_derived.content_sha256
+
+    def test_refusing_builder_leaves_no_database(self, raw, tmp_path) -> None:
+        from ingest.build_db import DerivedTable
+
+        def refuse(conn) -> None:
+            raise BuildError("labels do not cover the snapshot")
+
+        database = tmp_path / "b.duckdb"
+        with pytest.raises(BuildError, match="do not cover"):
+            build_database([crime_spec()], raw, database, derived=[DerivedTable("x", refuse)])
+        assert not database.exists()
+
+    def test_builder_that_creates_nothing_is_caught(self, raw, tmp_path) -> None:
+        from ingest.build_db import DerivedTable
+
+        with pytest.raises(BuildError, match="did not create it"):
+            build_database(
+                [crime_spec()], raw, tmp_path / "b.duckdb",
+                derived=[DerivedTable("ghost", lambda c: None)],
+            )
+
+    def test_derived_name_clashing_with_a_table_is_refused(self, raw, tmp_path) -> None:
+        from ingest.build_db import DerivedTable
+
+        with pytest.raises(BuildError, match="duplicate table names"):
+            build_database(
+                [crime_spec()], raw, tmp_path / "b.duckdb",
+                derived=[DerivedTable("crime_incidents", lambda c: None)],
+            )

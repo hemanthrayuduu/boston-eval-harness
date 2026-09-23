@@ -19,9 +19,10 @@ drops the suffix without shifting, which is correct for local times.
 
 from __future__ import annotations
 
-from ingest.build_db import TableSpec
+from ingest.build_db import DerivedTable, TableSpec
+from ingest.offense_codes import build_offense_codes
 
-__all__ = ["SNAPSHOT_TABLES", "UNUSED_RESOURCES"]
+__all__ = ["SNAPSHOT_TABLES", "SNAPSHOT_DERIVED", "UNUSED_RESOURCES"]
 
 SNAPSHOT_TABLES: tuple[TableSpec, ...] = (
     TableSpec(
@@ -121,6 +122,11 @@ SNAPSHOT_TABLES: tuple[TableSpec, ...] = (
         "e5849875-a6f6-4c9c-9d8a-5048b0fbd03e",
         casts={"acres": "DOUBLE", "sqmiles": "DOUBLE", "Shape_Area": "DOUBLE"},
     ),
+)
+
+# Built after the loads above, from them plus ingest/offense_code_labels.csv.
+SNAPSHOT_DERIVED: tuple[DerivedTable, ...] = (
+    DerivedTable("offense_codes", build_offense_codes),
 )
 
 _DICTIONARY = (

@@ -14,8 +14,8 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **274, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
-| Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 11 tables, 1,906,052 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
+| Tests | **300, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | None. No `claims/` directory. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
 | CI | None. No `.github/workflows/`. |
@@ -40,6 +40,7 @@ this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
 | 1 | Parquet → DuckDB with measured cast loss and dual checksums | `ingest/build_db.py` (`python -m ingest.build_db`) | Done. Multi-resource tables, strptime formats, coverage check, seals the manifest |
 | 1 | Snapshot table definitions | `ingest/tables.py` | Done. 11 tables from 20 resources; 33 resources listed as unused, each with a reason |
 | 1 | Snapshot verification | `ingest/verify_snapshot.py` (`python -m ingest.verify_snapshot`) | Done |
+| 1 | Offense-code lookup (UCR part + crime flag per (code, description)) | `ingest/offense_codes.py`, `ingest/offense_code_labels.csv` | Done. Derived table `offense_codes`, 308 pairs. **85 hand labels are drafts, not yet reviewed** (§4c) |
 | 2 | Dimensions with written justifications | `specs/dimensions.py` | Done (measure, window, geography, denominator, offense_set, missing_geo) |
 | 2 | Per-claim spec space, capped at 48 | `specs/space.py` | Done |
 | 2 | Claim assertions (change / level / comparison / rank) | `specs/assertions.py` | Done |
@@ -141,9 +142,10 @@ Other checks:
 
 1. **`UCR_PART` and `OFFENSE_CODE_GROUP` are 100% blank from 2019 on** (BPD's move to a new
    records system). The `offense_set=part_one` spec option can't be read off the row after 2018.
-   It *can* be recovered by code: 219 offense codes seen in 2015–2018 each map to exactly one UCR
-   part, and they cover **97.6% of 2019+ rows**. The other 34 codes (2.4% of rows) need hand
-   mapping. This is the spec for `offense_codes.py`.
+   **Correction:** I first wrote that mapping by code recovers 97.6% of 2019+ rows. That
+   overstated it, because **codes were reused with new meanings** (see §4c). Keyed on the
+   (code, description) pair: 78.1% of 2019+ rows match a pre-2019 pair exactly, 19.5% reuse a
+   code under a different description, and 2.4% use new codes.
 2. **Row grain changes in 2019.** In 2015–2018, rows exceed distinct `INCIDENT_NUMBER`s by about
    12% (one row per offense). From 2019 on, rows equal incidents. Counting rows versus incidents
    manufactures a trend break at 2019. That's a candidate for a new spec dimension (count unit)
@@ -170,6 +172,54 @@ Other checks:
 10. **Offense codes are zero-padded in some years' files and not others** (353k rows). All of
     them cast cleanly to `INTEGER`, which is the join key to `offense_codes_source`.
 11. **Boundary geometry is only in the GeoJSON.** See the correction above.
+
+---
+
+## 4c. Offense-code lookup (2026-09-23)
+
+`offense_codes` is a derived table built after the loads. It's keyed on the exact
+`(OFFENSE_CODE, OFFENSE_DESCRIPTION)` pair from `crime_incidents`, so agents join with
+`USING (OFFENSE_CODE, OFFENSE_DESCRIPTION)`. It covers all 956,125 crime rows. Every label
+records where it came from (`ucr_part_source`, `is_crime_source` = observed/hand/rule), plus a
+`rationale` and a `reviewed` flag for hand labels.
+
+- **UCR part:** BPD's own pre-2019 label where the pair was observed (223 + 21 pairs), otherwise
+  a hand label (64 pairs).
+- **`is_crime`:** a rule (Part One and Two are crimes, Part Three isn't) unless a hand label
+  overrides it. "Other" has no default and must be hand-labeled.
+- **The build refuses:** unlabeled pairs, hand labels contradicting BPD, stale labels, and pairs
+  with two observed parts. A new code in a refresh stops the build.
+
+**Hand labels: 85 rows in `ingest/offense_code_labels.csv`, drafted by Claude, all
+`reviewed=no`.** They cover 199,208 crime rows (21%). The ones that matter most:
+- **1831 "SICK ASSIST" (33,545 rows) and 1832 (5,446).** Before 2019 these codes were "DRUGS -
+  SICK ASSIST" (Part Two). The draft keeps Part Two for continuity but sets `is_crime=false`.
+  This one decision moves the drug trend: counting Part Two drug codes, drug incidents
+  *triple* from 3,438 (2019) to 11,196 (2025); counting only crimes, they go 3,020 → 2,688.
+- **Code reuses:** 530 (commercial burglary became B&E of a motor vehicle) and 3305
+  (demonstrations/riot became drunkenness).
+- **`is_crime` overrides against the Part rule:** hit-and-runs 3830/3831 (53k rows) and witness
+  intimidation 3170 count as crimes. Pre-2019 drug sick assists, CHINS, truancy/runaway,
+  ballistics found, and stolen-then-recovered don't.
+- **New codes labeled by analogy:** human trafficking (1610/1620) is Part One per the FBI (no
+  BPD analog). Justifiable homicide (990) isn't a crime.
+
+**Series check.** Through the lookup, Part One incidents run 17,214 (2018) → 16,646 (2019), and
+crimes run 45,116 → 45,321. Neither series shows a cliff at the system change.
+
+Findings from building it:
+12. **Codes were reused with new meanings in 2019:** 1831 (drug sick assist became plain sick
+    assist), 530 (burglary became B&E of a motor vehicle), 3305 (riot became drunkenness), 1848
+    (Class D became Class B). Mapping by code alone would silently mislabel 19.5% of 2019+ rows.
+13. **BPD's `UCR_PART` isn't the FBI's.** ARSON is "Other", though it's FBI Part I. Negligent
+    manslaughter and B&E-no-property-taken are also "Other". The lookup follows BPD's labels,
+    because `part_one` is defined as "what BPD reports".
+14. **Part Three isn't non-crime.** It holds hit-and-runs (57k rows) and witness intimidation.
+15. **The published code list is ambiguous:** 576 rows but only 425 distinct codes, some with
+    conflicting names (301 is both "ROBBERY - STREET" and "ROBBERY - FIREARM - BANK"). Also, 30
+    codes seen in the data aren't in the list. `offense_codes.published_names` keeps all names.
+16. **The drug trend depends on one label (1831).** See above. That's a ready-made
+    spec-sensitive claim.
 
 ---
 
@@ -225,7 +275,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [x] `ingest/verify_snapshot.py` CLI
 - [ ] Assign each crime incident to a neighborhood at build time (point-in-polygon against `neighborhoods._geometry`), since agent SQL likely can't load the spatial extension. Needed for the `geography=neighborhood` spec option.
 - [ ] FIO harmonisation (RMS vs Mark43, contact vs person files), then load as tables
-- [ ] `ingest/offense_codes.py`: crime vs non-crime lookup, dupes normalized in the lookup, originals kept. **Must include code → UCR part for 2019+** (§4a #1: derive from 2015–18, hand-map the other 34 codes). Source table is `rmsoffensecodes.xlsx` (576 codes, now pulled)
+- [x] `ingest/offense_codes.py`: UCR part and crime flag per (code, description), description variants normalized, originals kept (§4c)
+- [ ] **You: review the 85 draft labels** in `ingest/offense_code_labels.csv` and flip `reviewed` to `yes` as you go. Start with 1831/1832 (39k rows, moves the drug trend), then 530, 3305, and the `is_crime` overrides. Rebuild afterwards (`python -m ingest.build_db`)
 - [ ] Decide incident vs offense counting grain across the 2019 break (§4a #2). Possibly a new `count_unit` dimension in `specs/dimensions.py`
 - [ ] `ingest/acs_population.py` (Census API, tract level, area-weighted to neighborhood and district). Decide first whether the CKAN population estimates (§4) are enough for denominator #2.
 - [ ] `corpus/limitations/*.md`: 10–14 docs with stable `LIM-*` IDs
@@ -278,7 +329,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-22 | — | Status review: found B1–B6 and verified the catalog live |
 | 2026-09-22 | `5fb3510` | Cleanup: portable sandbox memory cap (B1), wheel packages (B2), catalog slugs (B3), README (B4). 251 tests |
 | 2026-09-23 | `2f14e40` | First live pull: XLSX parsing, empty-datastore fallback, skip list for alternate renderings. Manifest committed, 7 data findings. 260 tests |
-| 2026-09-23 | (this commit) | Snapshot build: `build_db`/`verify_snapshot` CLIs, `ingest/tables.py` (11 tables), coverage check, GeoJSON geometry kept. Sealed manifest. 274 tests |
+| 2026-09-23 | `cde858c` | Snapshot build: `build_db`/`verify_snapshot` CLIs, `ingest/tables.py` (11 tables), coverage check, GeoJSON geometry kept. Sealed manifest. 274 tests |
+| 2026-09-23 | (this commit) | Offense-code lookup: `offense_codes` derived table, 85 draft hand labels, derived-table support in `build_db`, failed builds leave no file. 300 tests |
 
 ---
 

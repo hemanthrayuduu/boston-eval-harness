@@ -1,0 +1,86 @@
+OFFENSE_CODE,description,ucr_part,is_crime,rationale,reviewed
+100,MIGRATED REPORT - CRIMINAL HOMICIDE,Part One,true,"Migrated record; BPD's category name places it in Part One, matching BPD's labels for the same offense before 2019.",no
+111,"MURDER, NON-NEGLIGENT MANSLAUGHTER",Part One,,"Rewording of the pre-2019 description 'MURDER, NON-NEGLIGIENT MANSLAUGHTER' (Part One); same offense.",no
+112,KILLING OF FELON BY POLICE,,false,"BPD labels this 'Other', which has no default. Justifiable by definition; UCR excludes it from criminal homicide.",no
+121,MANSLAUGHTER - VEHICLE - NEGLIGENCE,,true,"BPD labels this 'Other', which has no default. Negligent manslaughter is a crime; BPD's 'Other' reflects UCR's separate counting, not legality.",no
+122,MANSLAUGHTER - NEGLIGENCE,Other,true,"BPD labels negligent manslaughter (121, 123) 'Other', not Part One. Followed. It is a crime.",no
+123,MANSLAUGHTER - NON-VEHICLE - NEGLIGENCE,,true,"BPD labels this 'Other', which has no default. Negligent manslaughter is a crime.",no
+300,MIGRATED REPORT - ROBBERY,Part One,true,"Migrated record; BPD's category name places it in Part One, matching BPD's labels for the same offense before 2019.",no
+301,ROBBERY,Part One,,Rewording of the pre-2019 description 'ROBBERY - STREET' (Part One); same offense.,no
+400,MIGRATED REPORT - AGGRAVATED ASSAULT/AGGRAVATED ASSAULT & BATTERY,Part One,true,"Migrated record; BPD's category name places it in Part One, matching BPD's labels for the same offense before 2019.",no
+500,MIGRATED REPORT - BURGLARY/BREAKING AND ENTERING,Part One,true,"Migrated record; BPD's category name places it in Part One, matching BPD's labels for the same offense before 2019.",no
+520,BURGLARY - RESIDENTIAL,Part One,,Rewording of the pre-2019 description 'BURGLARY - RESIDENTIAL - FORCE' (Part One); same offense.,no
+527,B&E RESIDENCE DAY - NO PROP TAKEN,,true,"BPD labels this 'Other', which has no default. Breaking and entering is a crime whether or not property is taken.",no
+530,BREAKING AND ENTERING (B&E) MOTOR VEHICLE,Part One,true,"CODE REUSED: before 2019 code 530 was 'B&E NON-RESIDENCE NIGHT - FORCE' (Part One burglary). The new meaning, B&E of a motor vehicle, is larceny-from-vehicle class, which BPD also labels Part One (614, 615).",no
+531,BREAKING AND ENTERING (B&E) MOTOR VEHICLE (NO PROPERTY STOLEN),Other,true,"BPD labels B&E with no property taken (527, 547) 'Other'. Followed. Still a crime (attempted larceny / malicious damage).",no
+540,BURGLARY - COMMERICAL,Part One,,Rewording of the pre-2019 description 'BURGLARY - COMMERICAL - FORCE' (Part One); same offense.,no
+547,B&E NON-RESIDENCE DAY - NO PROP TAKEN,,true,"BPD labels this 'Other', which has no default. Breaking and entering is a crime whether or not property is taken.",no
+600,MIGRATED REPORT - OTHER LARCENY,Part One,true,"Migrated record; BPD's category name places it in Part One, matching BPD's labels for the same offense before 2019.",no
+641,BREAKING AND ENTERING (B&E) MOTOR VEHICLE,Part One,true,"Larceny-from-vehicle block (6xx); BPD labels that block Part One (614, 615, 624, 634).",no
+650,MIGRATED REPORT - LARCENY FROM MV,Part One,true,"Migrated record; BPD's category name places it in Part One, matching BPD's labels for the same offense before 2019.",no
+670,RECOVERED STOLEN PLATE,,false,"BPD labels this 'Other', which has no default. A recovery; the theft is recorded on its own report.",no
+700,MIGRATED REPORT - AUTO THEFT,Part One,true,"Migrated record; BPD's category name places it in Part One, matching BPD's labels for the same offense before 2019.",no
+735,AUTO THEFT - OUTSIDE - RECOVERED IN BOSTON,,false,"BPD labels this 'Other', which has no default. A recovery; the theft was reported in another jurisdiction.",no
+735,RECOVERED - MV RECOVERED IN BOSTON (STOLEN OUTSIDE BOSTON),,false,"BPD labels this 'Other', which has no default. A recovery; the theft was reported in another jurisdiction.",no
+736,RECOVERED - MV RECOVERED IN BOSTON (STOLEN IN BOSTON) MUST BE SUPPLEMENTAL,Other,false,"Sibling of 735 (recovered MV stolen outside Boston), which BPD labels 'Other'. A recovery, not an offense; the theft is recorded on its own report.",no
+800,MIGRATED REPORT - ASSAULT/ASSAULT & BATTERY,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+900,ARSON,,true,"BPD labels this 'Other', which has no default. Arson is a crime (and FBI Part I, though BPD labels it 'Other').",no
+990,JUSTIFIABLE HOMICIDE,Other,false,"Analogous to 112 'KILLING OF FELON BY POLICE' ('Other'). Justifiable homicide is by definition not a crime, and UCR excludes it from criminal homicide.",no
+1000,MIGRATED REPORT - COUNTERFEITING/FORGERY,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+1100,MIGRATED REPORT - FRAUD,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+1200,MIGRATED REPORT - EMBEZZLEMENT,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+1300,MIGRATED REPORT - STOLEN PROPERTY,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+1304,PROPERTY - STOLEN THEN RECOVERED,,false,"Part Two, but it records a recovery; the theft is on its own report.",no
+1400,MIGRATED REPORT - VANDALISM/DESTRUCTION OF PROPERTY,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+1500,MIGRATED REPORT - WEAPONS VIOLATION,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+1501,WEAPON VIOLATION - CARRY/ POSSESSING/ SALE/ TRAFFICKING/ OTHER,Part Two,,"Rewording of the pre-2019 description 'WEAPON - FIREARM - CARRYING / POSSESSING, ETC' (Part Two); same offense.",no
+1610,HUMAN TRAFFICKING - COMMERCIAL SEX ACTS,Part One,true,No BPD analog. FBI UCR has classed human trafficking as Part I since 2013; followed.,no
+1620,HUMAN TRAFFICKING - INVOLUNTARY SERVITUDE,Part One,true,No BPD analog. FBI UCR has classed human trafficking as Part I since 2013; followed.,no
+1800,MIGRATED REPORT - DRUGS - POSSESSION/MANUFACTURING/DISTRIBUTE,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+1810,DRUGS - POSSESSION/ SALE/ MANUFACTURING/ USE,Part Two,,Rewording of the pre-2019 description 'DRUGS - SALE / MANUFACTURING' (Part Two); same offense.,no
+1830,DRUGS - SICK ASSIST - HEROIN,,false,"Part Two, but a sick assist is a medical response to an overdose, not an offense.",no
+1831,DRUGS - SICK ASSIST - OTHER NARCOTIC,,false,"Part Two, but a sick assist is a medical response to an overdose, not an offense.",no
+1831,SICK ASSIST,Part Two,false,"CODE REUSED, JUDGMENT CALL: before 2019 code 1831 was 'DRUGS - SICK ASSIST - OTHER NARCOTIC' (Part Two). Kept Part Two for continuity with BPD's own label for the code, but a sick assist is a medical response, not an offense. 33k rows; flips 'drug crime' trends if counted.",no
+1832,DRUGS - SICK ASSIST - OTHER HARMFUL DRUG,,false,"Part Two, but a sick assist is a medical response to an overdose, not an offense.",no
+1832,SICK ASSIST - DRUG RELATED ILLNESS,Part Two,false,"Before 2019 'DRUGS - SICK ASSIST - OTHER HARMFUL DRUG' (Part Two). Same treatment as 1831: Part Two for continuity, not a crime.",no
+1903,GAMBLING - EQUIP VIOLATIONS,Part Two,true,Gambling block; BPD labels 1901 Part Two.,no
+2007,VIOLATION - RESTRAINING ORDER (NO ARREST),Part Two,,Rewording of the pre-2019 description 'VIOL. OF RESTRAINING ORDER W NO ARREST' (Part Two); same offense.,no
+2010,HOME INVASION,Part One,true,"No BPD analog. Home invasion (MA c.265 s.18C) is an armed entry with assault; UCR would code it robbery or burglary, both Part One.",no
+2101,OPERATING UNDER THE INFLUENCE (OUI) ALCOHOL,Part Two,,Rewording of the pre-2019 description 'OPERATING UNDER THE INFLUENCE ALCOHOL' (Part Two); same offense.,no
+2102,OPERATING UNDER THE INFLUENCE (OUI) DRUGS,Part Two,,Rewording of the pre-2019 description 'OPERATING UNDER THE INFLUENCE DRUGS' (Part Two); same offense.,no
+2400,MIGRATED REPORT - AFFRAY/DISTURBING THE PEACE/DISORDERLY CONDUCT,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+2403,DISTURBING THE PEACE/ DISORDERLY CONDUCT/ GATHERING CAUSING ANNOYANCE/ NOISY PAR,Part Two,,Rewording of the pre-2019 description 'DISTURBING THE PEACE' (Part Two); same offense.,no
+2500,MIGRATED REPORT - KIDNAPPING,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+2600,MIGRATED REPORT - OTHER PART II,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+2608,CHILD REQUIRING ASSISTANCE (FOMERLY CHINS),Part Two,false,"Rewording of 'CHINS' (Part Two). Kept Part Two, but a child-requiring-assistance petition is a civil status matter, not a crime.",no
+2608,CHINS,,false,"Part Two, but a child-in-need-of-services petition is a civil status matter, not a crime.",no
+2622,KIDNAPPING/CUSTODIAL KIDNAPPING/ ABDUCTION,Part Two,,Rewording of the pre-2019 description 'KIDNAPPING/CUSTODIAL KIDNAPPING' (Part Two); same offense.,no
+2631,PROPERTY - CONCEALING LEASED,,true,"BPD labels this 'Other', which has no default. Concealing leased property is a crime under MA law (c.266 s.87).",no
+2642,TRUANCY / RUNAWAY,,false,"Part Two, but truancy and running away are status matters, not crimes.",no
+2646,LIQUOR/ALCOHOL - DRINKING IN PUBLIC,Part Two,,Rewording of the pre-2019 description 'LIQUOR - DRINKING IN PUBLIC' (Part Two); same offense.,no
+2662,BALLISTICS EVIDENCE/FOUND,,false,"Part Two, but it records evidence found, not an offense; any shooting is recorded separately.",no
+2670,HARASSMENT/ CRIMINAL HARASSMENT,Part Two,,Rewording of the pre-2019 description 'CRIMINAL HARASSMENT' (Part Two); same offense.,no
+2671,VIOLATION - HARASSMENT PREVENTION ORDER,Part Two,true,"Analogous to restraining-order violations 2006/2007, which BPD labels Part Two.",no
+2900,MIGRATED REPORT - AUTO LAW VIOLATION,Part Two,true,"Migrated record; BPD's category name places it in Part Two, matching BPD's labels for the same offense before 2019.",no
+2905,VAL - VIOLATION OF AUTO LAW,Part Two,,Broadened from the pre-2019 'VAL - OPERATING WITHOUT LICENSE' (Part Two) to auto-law violations generally; BPD labels every VAL code Part Two.,no
+2950,MIGRATED REPORT - MOTOR VEHICLE CRASH,Part Three,false,"Migrated record; BPD's category name places it in Part Three, matching BPD's labels for the same offense before 2019.",no
+3000,MIGRATED REPORT - DEATH INVESTIGATION,Part Three,false,"Migrated record; BPD's category name places it in Part Three, matching BPD's labels for the same offense before 2019.",no
+3005,SICK ASSIST,Part Three,false,"Analogous to 3006 'SICK/INJURED/MEDICAL - PERSON' (Part Three). Medical response, not an offense.",no
+3100,MIGRATED REPORT - INVESTIGATE PROPERTY,Part Three,false,"Migrated record; BPD's category name places it in Part Three, matching BPD's labels for the same offense before 2019.",no
+3108,FIRE REPORT,Part Three,,"Rewording of the pre-2019 description 'FIRE REPORT - HOUSE, BUILDING, ETC.' (Part Three); same offense.",no
+3110,SERVICE TO OTHER AGENCY,Part Three,,Rewording of the pre-2019 description 'SERVICE TO OTHER PD OUTSIDE OF MA.' (Part Three); same offense.,no
+3112,LANDLORD - TENANT,Part Three,,Rewording of the pre-2019 description 'LANDLORD - TENANT SERVICE' (Part Three); same offense.,no
+3125,WARRANT ARREST - BOSTON WARRANT (MUST BE SUPPLEMENTAL),Part Three,,Rewording of the pre-2019 description 'WARRANT ARREST' (Part Three); same offense.,no
+3126,WARRANT ARREST - OUTSIDE OF BOSTON WARRANT,Part Three,false,Sibling of 3125 'WARRANT ARREST' (Part Three). Serves an existing warrant; records no new offense.,no
+3170,INTIMIDATING WITNESS,,true,"Part Three, but witness intimidation is a felony (MA c.268 s.13B).",no
+3200,MIGRATED REPORT - INVESTIGATE PERSON,Part Three,false,"Migrated record; BPD's category name places it in Part Three, matching BPD's labels for the same offense before 2019.",no
+3201,PROPERTY - LOST/ MISSING,Part Three,,Rewording of the pre-2019 description 'PROPERTY - LOST' (Part Three); same offense.,no
+3300,MIGRATED REPORT - OTHER PART III,Part Three,false,"Migrated record; BPD's category name places it in Part Three, matching BPD's labels for the same offense before 2019.",no
+3303,NOISY PARTY/RADIO-ARREST,,true,"Part Three, but the arrest implies an offense (disturbing the peace). Borderline; its no-arrest sibling 3304 stays non-crime.",no
+3305,DRUNKENNESS,Part Three,false,CODE REUSED: before 2019 code 3305 was 'DEMONSTRATIONS/RIOT' (Part Three). Kept Part Three. Public drunkenness is not a crime in Massachusetts (decriminalised 1971; handled as protective custody under c.111B).,no
+3350,MIGRATED REPORT - INJURED/MEDICAL/SICK ASSIST,Part Three,false,"Migrated record; BPD's category name places it in Part Three, matching BPD's labels for the same offense before 2019.",no
+3402,"ANIMAL INCIDENTS (DOG BITES, LOST DOG, ETC)",Part Three,,Rewording of the pre-2019 description 'ANIMAL INCIDENTS' (Part Three); same offense.,no
+3820,M/V ACCIDENT - INVOLVING PEDESTRIAN - INJURY,Part Three,,Rewording of the pre-2019 description 'M/V ACCIDENT INVOLVING PEDESTRIAN - INJURY' (Part Three); same offense.,no
+3830,M/V - LEAVING SCENE - PERSONAL INJURY,,true,"Part Three, but leaving the scene is a crime (MA c.90 s.24).",no
+3831,M/V - LEAVING SCENE - PROPERTY DAMAGE,,true,"Part Three, but leaving the scene is a crime (MA c.90 s.24).",no
+99999,EVIDENCE TRACKER INCIDENTS,Other,false,"Administrative evidence-tracking record, not an incident type.",no
