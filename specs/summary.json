@@ -1,0 +1,53 @@
+{
+  "claims": 151,
+  "computable_claims": 119,
+  "labels": {
+    "contradicted": 46,
+    "supported": 67,
+    "underdetermined": 6,
+    "unverifiable": 32
+  },
+  "labels_by_source_kind": {
+    "bpd_weekly_report": {
+      "contradicted": 33,
+      "supported": 56,
+      "underdetermined": 3,
+      "unverifiable": 16
+    },
+    "news": {
+      "contradicted": 12,
+      "supported": 9,
+      "underdetermined": 3,
+      "unverifiable": 11
+    },
+    "official_statement": {
+      "contradicted": 1,
+      "supported": 2,
+      "unverifiable": 5
+    }
+  },
+  "snapshot_content_sha256": "60ce05173757556d45bd6d819c634ac2a43a9f4d21a58afec33709f7e78127cb",
+  "underdetermined_drivers": {
+    "measure": 2,
+    "missing_geo": 1,
+    "offense_mapping": 3
+  },
+  "underdetermined_share_of_computable": 0.05,
+  "unverifiable_by_why": {
+    "coverage": 6,
+    "engine_gap": 6,
+    "out_of_scope": 20
+  },
+  "unverifiable_reasons": {
+    "coverage:after_data_end:shootings complete through 2026-09-05": 4,
+    "coverage:before_data_start:crime starts 2015-06-15": 2,
+    "engine_gap:gun_recovery_channels": 1,
+    "engine_gap:neighborhood_geography": 4,
+    "engine_gap:population_denominator": 1,
+    "out_of_scope:cross_city": 5,
+    "out_of_scope:not_in_data:arrests": 1,
+    "out_of_scope:not_in_data:domestic_aggravated_assault": 5,
+    "out_of_scope:not_in_data:non_domestic_aggravated_assault": 4,
+    "out_of_scope:not_in_data:rape": 5
+  }
+}

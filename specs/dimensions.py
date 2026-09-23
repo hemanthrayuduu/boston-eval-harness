@@ -81,6 +81,11 @@ MEASURE = Dimension(
             "measure least sensitive to reporting propensity.",
         ),
         Option(
+            "non_fatal_only",
+            "People struck and survived. What claims about 'people wounded' or 'shot and "
+            "survived' count; the complement of fatal_only within victims_struck.",
+        ),
+        Option(
             "gunfire_reports",
             "Reports of gunfire including those with no confirmed victim. Broadest "
             "measure; heavily dependent on reporting and detection.",
@@ -186,6 +191,26 @@ OFFENSE_SET = Dimension(
     ),
 )
 
+OFFENSE_MAPPING = Dimension(
+    key="offense_mapping",
+    question="Which records count as a given offense category, e.g. 'robbery'?",
+    options=(
+        Option(
+            "by_description",
+            "Classify each record by its offense description. Follows what the record "
+            "says, so it tracks BPD's 2019 rewording and codes reused with new meanings; "
+            "depends on keyword lists matching every wording variant.",
+        ),
+        Option(
+            "by_code_range",
+            "Classify by BPD's UCR-ordered offense-code blocks (1xx homicide, 3xx robbery, "
+            "4xx aggravated assault, 5xx burglary, 6xx larceny, 7xx auto theft) -- how a "
+            "code-literate analyst filters. Robust to rewording, blind to reused codes: "
+            "530 became B&E of a motor vehicle in 2022 but sits in the burglary block.",
+        ),
+    ),
+)
+
 # Every option counts distinct incidents. Counting *rows* is deliberately not an
 # option: before 2019 crime_incidents has one row per offense (about 13% more rows
 # than incidents; 31k incidents list several offenses), and from 2019 exactly one
@@ -234,7 +259,9 @@ MISSING_GEO = Dimension(
 
 DIMENSIONS: dict[str, Dimension] = {
     dim.key: dim
-    for dim in (MEASURE, WINDOW, GEOGRAPHY, DENOMINATOR, OFFENSE_SET, MULTI_OFFENSE, MISSING_GEO)
+    for dim in (
+        MEASURE, WINDOW, GEOGRAPHY, DENOMINATOR, OFFENSE_SET, OFFENSE_MAPPING, MULTI_OFFENSE, MISSING_GEO
+    )
 }
 
 

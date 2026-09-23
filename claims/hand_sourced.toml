@@ -390,8 +390,9 @@ measure = { family = "shootings", name = "Shooting victims per year", shooting_m
 geography = { level = "citywide" }
 window = { kind = "period", current_start = 2022-01-01, current_end = 2024-12-29 }
 assertion = { kind = "comparison", direction = "less", margin = 0 }
+stated = { reference = 200, per_year_max = 1 }
 cluster = "shooting-victims:citywide:2024"
-notes = ["Asserts each of 2022, 2023 and 2024 was under 200: the compared value is the largest annual count in the period minus 200."]
+notes = ["Asserts each of 2022, 2023 and 2024 was under 200: the compared value is the largest annual count in the period minus 200 (stated.reference, stated.per_year_max)."]
 
 [[claim]]
 id = "hand-bostoncom-20241229-agg-assault-up-3"
@@ -440,8 +441,9 @@ measure = { family = "shootings", name = "Non-fatal shooting victims", shooting_
 geography = { level = "citywide" }
 window = { kind = "period", current_start = 2025-01-01, current_end = 2025-12-31 }
 assertion = { kind = "comparison", direction = "greater", margin = 0 }
+stated = { reference = 100 }
 cluster = "shooting-victims:citywide:2025"
-notes = ["The compared value is the count minus 100."]
+notes = ["The compared value is the count minus 100 (stated.reference)."]
 
 [[claim]]
 id = "hand-bostoncom-20260112-domestic-agg-above-avg"

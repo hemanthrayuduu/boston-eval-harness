@@ -330,9 +330,10 @@ class TestLabelDerivation:
         without landing on them, which is the case that matters: 15/16 support is
         strong evidence and still not 'supported'.
         """
+        # Four options of each: 16 specifications, so no fraction lands on a threshold.
         space = SpecSpace.build(
-            measure=DIMENSIONS["measure"].option_keys,
-            window=DIMENSIONS["window"].option_keys,
+            measure=DIMENSIONS["measure"].option_keys[:4],
+            window=DIMENSIONS["window"].option_keys[:4],
         )
         specs = space.enumerate()
         assert len(specs) == 16

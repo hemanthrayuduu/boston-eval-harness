@@ -2,7 +2,7 @@
 id = "LIM-OFFENSE-CODE-REUSE"
 title = "Some offense codes mean different things before and after 2019"
 applies_to = ["crime_incidents.OFFENSE_CODE", "crime_incidents.OFFENSE_DESCRIPTION", "offense_codes"]
-dimensions = ["offense_set"]
+dimensions = ["offense_set", "offense_mapping"]
 evidence_snapshot = "2026-09-23"
 sources = ["https://data.boston.gov/dataset/crime-incident-reports-august-2015-to-date-source-new-system"]
 +++

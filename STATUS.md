@@ -14,7 +14,7 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **384, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **413, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | **Corpus v0.2.0: 151 claims.** 108 from BPD's weekly reports (`claims/corpus/bpd.jsonl`, selected from 29,661 candidates) and 43 hand-sourced from 11 news and official pages (`claims/hand_sourced.toml` → `claims/corpus/hand.jsonl`). See §4g–4i and `claims/CHANGELOG.md`. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
@@ -47,7 +47,8 @@ this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
 | 2 | Claim assertions (change / level / comparison / rank) | `specs/assertions.py` | Done |
 | 2 | Curve computation plus driver attribution | `specs/curve.py` | Done. Takes an `Evaluator` protocol |
 | 2 | Label derivation (0.95 / 0.05 thresholds) | `specs/labels.py` | Done |
-| 2 | **`specs/compute.py`, the real DuckDB evaluator** | — | **Missing.** Only synthetic evaluators in tests |
+| 2 | The real snapshot evaluator plus per-claim spec spaces | `specs/compute.py` | Done (§4j). Trusted SQL on a verified read-only connection |
+| 2 | Curves and labels for the whole corpus | `specs/run.py` (`python -m specs.run`) → `specs/curves.jsonl`, `specs/summary.json` | Done (§4j). **Labels are v0 and provisional** |
 | 4 | Allowlist SQL guard | `env/guard.py` | Done, with malicious-query suite |
 | 4 | Subprocess sandbox (timeout, DuckDB `memory_limit`, plus `RLIMIT_AS` where the OS allows) | `env/sandbox.py`, `env/_worker.py` | Done. Portable since B1 fix |
 | 4 | Tools, agent loop | `env/tools.py`, `env/loop.py` | **Missing** |
@@ -178,6 +179,83 @@ Other checks:
 
 ---
 
+## 4j. Spec curves v0 (2026-09-23)
+
+`python -m specs.run` verifies the snapshot, then computes a curve and a derived label for all
+151 claims. It takes 6 seconds and writes `specs/curves.jsonl` (every outcome with its value,
+its counts, or the reason it isn't computable) and `specs/summary.json`.
+
+**How it evaluates** (`specs/compute.py`):
+- **Windows come from the claim's stated dates**, including five-year averages, year-by-year
+  ranks, and partial-year-vs-full-year comparisons.
+- **The spec varies only what the claim leaves open:**
+  - `offense_mapping`: new, by description vs by BPD code range.
+  - `missing_geo`: incidents with no district dropped vs allocated.
+  - `multi_offense`: varied only if the window reaches before 2019.
+  - `measure`: for shootings claims that don't say victims or incidents. `non_fatal_only` is new.
+- **Counts are distinct incidents.**
+- **"Not computable" carries a reason:** `out_of_scope` (the data can't address it), `coverage`
+  (the window falls outside the data), or `engine_gap` (not built yet). The summary keeps
+  them apart.
+
+**Results, v0:**
+
+| Label | Claims |
+|---|---|
+| supported | 67 |
+| contradicted | 46 |
+| underdetermined | 6 |
+| unverifiable | 32 |
+
+The 32 unverifiable claims:
+- **20 out of scope:** 5 cross-city, 5 rape, 9 domestic/non-domestic aggravated assault, 1
+  arrests.
+- **6 coverage:** 4 shootings claims past the data's end (2026-09-05), 2 ranks reaching before
+  2015.
+- **6 engine gaps:** 4 neighborhood, 1 gun-recovery channels, 1 population rate.
+
+**Underdetermined: 6 of 119 computable claims (5%).** Drivers: `offense_mapping` 3, `measure`
+2, `missing_geo` 1. The two `measure`-driven ones are the purest cases:
+- The Herald's "116 vs 120 shootings" holds counted as incidents (−3.4%) and fails counted as
+  victims (+2.1%).
+- The Globe's "64 vs 67" does the reverse.
+
+**What the 46 contradictions are.** They're mostly **gaps between official figures and the
+open data**, not spec sensitivity:
+- **Homicides:** the open data has 24 "murder" incidents in 2025 against the 31 officials
+  report. Every official 2025 homicide-change claim fails.
+- **Part One totals:** 9–14% lower in the open data (no rape), and growing faster in some
+  years.
+- **Small district counts:** percentages on counts like 2 → 8 fail a ±5-point tolerance.
+- **Direction flips:** WBUR's "violent crime −2% in 2024" is +3.1% in the open data; the
+  Globe's "property crime −3%" is +3.4%.
+
+These are real findings, but they're the Phase 3 reproducibility audit's subject. The audit can
+now run directly on the 305 extracted BPD reports.
+
+**Two design issues for you:**
+1. **The tolerance is doing a lot of work.** `ChangeAssertion`'s absolute ±5-point tolerance is
+   absurdly tight for "+300%" on 2 → 8. It also makes knife-edge labels: 2024 gunfire vs its
+   5-year average comes out −42.2% or −41.9% against a stated −37%, so one spec holds and one
+   fails. A count-based or relative tolerance would fix both, but it changes the answer key,
+   so it's your call.
+2. **The v0 space is narrow, which is why only 5% are underdetermined.** With windows pinned to
+   stated dates, the implemented choices rarely flip a claim: the two mappings agree except
+   around reused codes, and missing districts are about 0.5% of incidents. The choices most
+   likely to move labels aren't modeled yet:
+   - how to read partial-year-vs-full-year windows (WBUR's "31 so far vs 24" style)
+   - homicide counting by ruling date (not in the data)
+   - neighborhood boundaries
+   - population denominators
+
+   **The 5% is a floor for this engine, not a finding about Boston claims yet.**
+
+Correction: my §4h hand-verification of "shooting victims, 2026 year-to-date: holds" was
+invalid, because the shootings data ends 2026-09-06. The engine now refuses such windows
+(`coverage:after_data_end`).
+
+---
+
 ## 4i. Hand-sourced claims (2026-09-23)
 
 43 claims from 11 pages:
@@ -276,7 +354,7 @@ spec, not a curve:
 | Claim | BPD | Open data | Holds? |
 |---|---|---|---|
 | Shooting incidents, 2023 vs 2022 | 145 → 110 | 143 → 109 | yes |
-| Shooting victims, Jan 1–Sep 20, 2026 vs 2025 | 94 → 95 | 94 → 94 | yes (flat) |
+| Shooting victims, Jan 1–Sep 20, 2026 vs 2025 | 94 → 95 | ~~94 → 94~~ | **invalid check**: the shootings data ends 2026-09-06, so the 2026 side was undercounted. `specs.compute` now marks it not computable (§4j) |
 | Part One, district A1, Jan 1–Dec 28, 2025 vs 2024 | 2,258 → 2,174 (−3.7%) | 2,075 → 1,993 (−4.0%) | yes |
 | Homicides, 2023 vs 2022 | 40 → 37 (−7.5%) | 40 → 33 (−17.5%) | **no** |
 | Robbery, Jan 1–Sep 20, 2026 vs 2025 | 549 → 532 (−3.1%) | 468 → 473 (+1.1%) | **no: direction flips** |
@@ -571,9 +649,12 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [x] **DoD:** 5 BPD claims hand-verified (§4h); **151 claims** in the corpus (§4i). Phase 1's other items (population denominators, your label review and exploration pass) remain open
 
 ### Phase 2 finish: the real evaluator
-- [ ] `specs/compute.py`: `(claim, spec) -> float | None` as parameterized SQL over DuckDB, going through `env/sandbox`. Cached. Count `DISTINCT INCIDENT_NUMBER` (§4d), join `offense_codes` for `offense_set`, honor `multi_offense`
-- [ ] CLI: `python -m specs.curve --corpus … --out specs/curves.jsonl` and `python -m specs.labels`
-- [ ] **DoD:** every corpus claim has a curve. Report the headline share of `underdetermined` claims.
+- [x] `specs/compute.py`: `(claim, spec) -> float | None`, counting distinct incidents and joining `offense_codes`, plus `space_for(claim)` (§4j). It uses a verified read-only connection rather than `env/sandbox`, which exists to contain *model* SQL
+- [x] CLI: `python -m specs.run` writes `specs/curves.jsonl` and `specs/summary.json` in one step (instead of the roadmap's two)
+- [x] **DoD:** every corpus claim has a curve. Headline, v0: **6 of 119 computable claims (5%) are underdetermined** (§4j). That's provisional: the space is still narrow
+- [ ] **You: decide the change-claim tolerance** (§4j, issue 1). An absolute ±5 points is too tight for small counts and creates knife-edge labels. Options: count-based tolerance, or a tolerance relative to the stated magnitude
+- [ ] Widen the spec space (§4j, issue 2): window reading for partial-year vs full-year claims; homicide counting (the open data has no ruling-date field); neighborhood geography (spatial join at build time); population denominators (needs the Census key)
+- [ ] Engine gaps: gun-recovery channels (`firearm_recovery`), neighborhood geography (4 claims)
 
 ### Phase 3: reproducibility audit (first finding with no model)
 - [ ] `experiments/reproducibility_audit.py`: BPD figure vs best-matching spec, with deltas by category and year and diagnosed causes
@@ -621,7 +702,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `552a1ad` | BPD archive scraper: 639 posts indexed, 420 PDFs, 12 lost to link rot (§4g). 329 tests |
 | 2026-09-23 | `2c0467d` | BPD figure extraction: 113,556 figures from 305 reports, 312 failed consistency checks in BPD's own reports. 351 tests |
 | 2026-09-23 | `9b8b7df` | Claim corpus v0.1.0: schema, 108 BPD claims from 29,661 candidates, 5 hand-verified; `ucr_part` shadowing bug fixed; extractor Grand Total fix. 365 tests |
-| 2026-09-23 | (this commit) | Corpus v0.2.0: 43 hand-sourced claims from 11 verified pages (151 total), schema v2, `ChangeAssertion.bound`. 384 tests |
+| 2026-09-23 | `562ba63` | Corpus v0.2.0: 43 hand-sourced claims from 11 verified pages (151 total), schema v2, `ChangeAssertion.bound`. 384 tests |
+| 2026-09-23 | (this commit) | `specs/compute.py` plus `specs/run.py`: curves and v0 labels for all 151 claims; `offense_mapping` dimension; 5% underdetermined (provisional). 413 tests |
 
 ---
 

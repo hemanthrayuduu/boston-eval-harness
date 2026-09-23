@@ -29,7 +29,7 @@ notice?**
 
 ## Status
 
-384 tests, all offline (no network, no API keys, no data snapshot required).
+413 tests, all offline (no network, no API keys, no data snapshot required).
 Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 
 - [x] Feasibility check on claim sourcing (ClaimBench §0)
@@ -41,7 +41,7 @@ Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 - [x] DuckDB snapshot build + verify — 11 tables, 1.9M rows, sealed (`python -m ingest.build_db`)
 - [x] Offense-code lookup — UCR part + crime flag per (code, description), 85 draft hand labels
 - [x] Limitations corpus — 15 documented data pitfalls with stable IDs (`corpus/limitations/`)
-- [ ] `specs/compute.py` evaluator
+- [x] `specs/compute.py` evaluator — v0 spec curves and labels for all 151 claims (`python -m specs.run`)
 - [x] BPD weekly reports scraped and extracted — 305 reports, 113k figures (`claims/`)
 - [x] Claim corpus v0.2.0 — 151 claims: 108 from BPD reports, 43 hand-sourced from news and official statements (`claims/corpus/`)
 - [ ] Agent loop and tool surface — `env/tools.py`, `env/loop.py`
