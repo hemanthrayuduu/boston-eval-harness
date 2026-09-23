@@ -154,9 +154,18 @@ def _parse_csv(data: bytes) -> pl.DataFrame:
 def _parse_json(data: bytes) -> pl.DataFrame:
     payload = json.loads(data.decode("utf-8", errors="replace"))
 
-    # GeoJSON: the rows are the feature properties.
+    # GeoJSON: the rows are the feature properties, plus the geometry as a
+    # GeoJSON string. On Analyze Boston the geometry exists nowhere else: the
+    # boundary CSVs carry a shape_wkt column, but it is empty at source.
     if isinstance(payload, dict) and payload.get("type") == "FeatureCollection":
-        records = [feature.get("properties", {}) for feature in payload.get("features", [])]
+        features = payload.get("features", [])
+        records = [dict(feature.get("properties") or {}) for feature in features]
+        if any(feature.get("geometry") for feature in features):
+            for record, feature in zip(records, features):
+                geometry = feature.get("geometry")
+                record["_geometry"] = (
+                    json.dumps(geometry, separators=(",", ":")) if geometry else None
+                )
     elif isinstance(payload, list):
         records = payload
     elif isinstance(payload, dict) and isinstance(payload.get("records"), list):

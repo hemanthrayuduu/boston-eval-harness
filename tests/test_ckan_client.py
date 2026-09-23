@@ -323,6 +323,28 @@ class TestFallbackPath:
         assert fetched.row_count == 2
         assert set(fetched.columns) == {"name", "id"}
 
+    def test_geojson_geometry_is_kept(self) -> None:
+        """Boundary geometry exists only in the GeoJSON on Analyze Boston -- the
+        CSVs' shape_wkt column is empty at source. Dropping it here would make
+        every neighborhood spatial join impossible downstream."""
+        polygon = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]}
+        geojson = json.dumps(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"name": "Roxbury"}, "geometry": polygon},
+                    {"type": "Feature", "properties": {"name": "Nowhere"}, "geometry": None},
+                ],
+            }
+        ).encode()
+        client = CkanClient(FakeTransport({"/n.geojson": geojson}))
+        frame = client.fetch_resource(
+            ResourceRef("r1", "nbhds", "geojson", "http://x/n.geojson", datastore_active=False)
+        ).frame
+        assert frame.columns == ["name", "_geometry"]
+        assert json.loads(frame["_geometry"][0]) == polygon
+        assert frame["_geometry"][1] is None
+
 
 class TestSpreadsheets:
     def fetch(self, workbook: bytes):

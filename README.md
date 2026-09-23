@@ -29,7 +29,7 @@ notice?**
 
 ## Status
 
-260 tests, all offline (no network, no API keys, no data snapshot required).
+274 tests, all offline (no network, no API keys, no data snapshot required).
 Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 
 - [x] Feasibility check on claim sourcing (ClaimBench §0)
@@ -38,7 +38,8 @@ Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 - [x] Trace schema + pure scoring — `harness/trace.py`, `harness/score.py`
 - [x] CKAN ingest + DuckDB build — `ingest/`
 - [x] First live snapshot pull — 53 resources, 2.26M rows (`data/manifest.json`)
-- [ ] DuckDB build CLI + `specs/compute.py` evaluator
+- [x] DuckDB snapshot build + verify — 11 tables, 1.9M rows, sealed (`python -m ingest.build_db`)
+- [ ] `specs/compute.py` evaluator + offense-code lookup
 - [ ] Claim corpus — `claims/`
 - [ ] Agent loop and tool surface — `env/tools.py`, `env/loop.py`
 

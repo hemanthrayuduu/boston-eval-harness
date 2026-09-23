@@ -173,7 +173,9 @@ class TestCastLoss:
 
 class TestChecksums:
     def test_rebuilding_the_same_path_is_byte_identical(self, raw, tmp_path) -> None:
-        """DuckDB output is deterministic for identical content at a given path."""
+        """True for small tables like these. Not for the real snapshot, where
+        parallel loading moves the bytes between builds -- see the build_db
+        module docstring. The content digest is what survives a rebuild."""
         database = tmp_path / "boston.duckdb"
         first = build_database([crime_spec()], raw, database)
         second = build_database([crime_spec()], raw, database)
@@ -240,8 +242,8 @@ class TestSealing:
         )
         manifest.verify(database)
 
-        # An honest rebuild of identical data at the same path still verifies,
-        # since DuckDB's output is deterministic there.
+        # An honest rebuild of identical data at the same path still verifies
+        # at this size (not at real snapshot size -- rebuilds re-seal).
         build_database([crime_spec()], raw, database)
         manifest.verify(database)
 
@@ -261,3 +263,213 @@ class TestSealing:
         restored = Manifest.from_json(manifest.to_json())
         assert restored.content_sha256 == report.content_sha256
         assert restored.duckdb_sha256 == report.duckdb_sha256
+
+
+class TestMultiResourceTables:
+    """Crime incidents ship as one file per year and load as one table."""
+
+    @pytest.fixture
+    def yearly(self, tmp_path):
+        directory = tmp_path / "raw"
+        directory.mkdir()
+        pl.DataFrame({"INCIDENT_NUMBER": ["I1", "I2"], "YEAR": ["2018", "2018"]}).write_parquet(
+            directory / "y2018.parquet"
+        )
+        # Same columns, different order: a union by name, not by position.
+        pl.DataFrame({"YEAR": ["2019"], "INCIDENT_NUMBER": ["I3"]}).write_parquet(
+            directory / "y2019.parquet"
+        )
+        pl.DataFrame({"INCIDENT_NUMBER": ["I4"], "YEAR": ["2020"], "SHOOTING": ["Y"]}).write_parquet(
+            directory / "y2020-extra.parquet"
+        )
+        return directory
+
+    def test_resources_are_unioned_by_name(self, yearly, tmp_path) -> None:
+        database = tmp_path / "b.duckdb"
+        report = build_database(
+            [TableSpec("crime_incidents", ("y2018", "y2019"), {"YEAR": "INTEGER"})],
+            yearly,
+            database,
+        )
+        assert report.total_rows == 3
+        assert report.tables[0].resource_ids == ("y2018", "y2019")
+        rows = duckdb.connect(str(database), read_only=True).execute(
+            "SELECT INCIDENT_NUMBER, YEAR FROM crime_incidents ORDER BY 1"
+        ).fetchall()
+        assert rows == [("I1", 2018), ("I2", 2018), ("I3", 2019)]
+        assert "(2 resources)" in report.render()
+
+    def test_resources_with_different_columns_are_refused(self, yearly, tmp_path) -> None:
+        """A union would null-fill SHOOTING for 2018 and 2019, and the table would
+        look like it recorded no shootings in those years."""
+        with pytest.raises(BuildError, match="different columns") as excinfo:
+            build_database(
+                [TableSpec("crime_incidents", ("y2018", "y2020-extra"))],
+                yearly,
+                tmp_path / "b.duckdb",
+            )
+        assert "SHOOTING" in str(excinfo.value)
+
+    def test_missing_resource_is_named(self, yearly, tmp_path) -> None:
+        with pytest.raises(BuildError, match=r"\['y2021'\].*Run ingest.pull first"):
+            build_database(
+                [TableSpec("crime_incidents", ("y2018", "y2021"))], yearly, tmp_path / "b.duckdb"
+            )
+
+    def test_empty_resource_list_refused(self) -> None:
+        with pytest.raises(BuildError, match="at least one resource"):
+            TableSpec("crime_incidents", ())
+
+
+class TestFormats:
+    @pytest.fixture
+    def legacy(self, tmp_path):
+        directory = tmp_path / "raw"
+        directory.mkdir()
+        pl.DataFrame(
+            {"FROMDATE": ["07/08/2012 06:00:00 AM", "12/31/2014 11:59:00 PM", "not a date"]}
+        ).write_parquet(directory / "legacy.parquet")
+        return directory
+
+    def test_strptime_format_parses_what_a_cast_cannot(self, legacy, tmp_path) -> None:
+        database = tmp_path / "b.duckdb"
+        report = build_database(
+            [
+                TableSpec(
+                    "crime_incidents_legacy",
+                    "legacy",
+                    casts={"FROMDATE": "TIMESTAMP"},
+                    formats={"FROMDATE": "%m/%d/%Y %I:%M:%S %p"},
+                    max_cast_loss=0.5,
+                )
+            ],
+            legacy,
+            database,
+        )
+        values = duckdb.connect(str(database), read_only=True).execute(
+            "SELECT strftime(FROMDATE, '%Y-%m-%d %H:%M') FROM crime_incidents_legacy"
+        ).fetchall()
+        assert values == [("2012-07-08 06:00",), ("2014-12-31 23:59",), (None,)]
+        # Loss is measured through the format too, not through a bare cast.
+        assert report.lossy_casts[0].lost == 1
+
+    def test_format_without_a_cast_is_refused(self) -> None:
+        with pytest.raises(BuildError, match="no cast"):
+            TableSpec("t", "r", formats={"FROMDATE": "%m/%d/%Y"})
+
+
+def manifest_with(*resource_ids: str) -> Manifest:
+    from ingest.manifest import ResourceEntry
+
+    return Manifest(
+        snapshot_date="2026-09-23",
+        base_url="https://data.boston.gov",
+        resources=[
+            ResourceEntry(
+                dataset_id="ds",
+                resource_id=rid,
+                name=f"name-{rid}",
+                format="csv",
+                source="datastore",
+                row_count=1,
+                columns=("a",),
+                content_sha256="x",
+                fetched_at="2026-09-23T00:00:00+00:00",
+            )
+            for rid in resource_ids
+        ],
+    )
+
+
+class TestCoverage:
+    """Every pulled resource is loaded or deliberately left out -- a new yearly
+    file must not be pulled, checksummed, and then never loaded."""
+
+    def test_full_coverage_passes(self) -> None:
+        from ingest.build_db import check_coverage
+
+        check_coverage(
+            manifest_with("a", "b", "c"),
+            [TableSpec("t", ("a", "b"))],
+            {"c": "data dictionary"},
+        )
+
+    def test_unassigned_resource_is_named_with_context(self) -> None:
+        from ingest.build_db import check_coverage
+
+        with pytest.raises(BuildError, match="neither loaded nor listed") as excinfo:
+            check_coverage(manifest_with("a", "new"), [TableSpec("t", "a")], {})
+        assert "new" in str(excinfo.value)
+        assert "name-new" in str(excinfo.value)
+
+    def test_resource_gone_from_the_snapshot_is_flagged(self) -> None:
+        from ingest.build_db import check_coverage
+
+        with pytest.raises(BuildError, match="not in this snapshot"):
+            check_coverage(manifest_with("a"), [TableSpec("t", "a")], {"gone": "old"})
+
+    def test_resource_assigned_twice_is_flagged(self) -> None:
+        from ingest.build_db import check_coverage
+
+        with pytest.raises(BuildError, match="more than once"):
+            check_coverage(
+                manifest_with("a"), [TableSpec("t", "a"), TableSpec("u", "a")], {}
+            )
+        with pytest.raises(BuildError, match="more than once"):
+            check_coverage(manifest_with("a"), [TableSpec("t", "a")], {"a": "also unused"})
+
+
+class TestCommandLine:
+    @pytest.fixture
+    def snapshot(self, raw, tmp_path, monkeypatch):
+        import ingest.tables
+
+        manifest = manifest_with("res-crime", "res-pop", "res-messy")
+        manifest.write(tmp_path / "manifest.json")
+        monkeypatch.setattr(ingest.tables, "SNAPSHOT_TABLES", (crime_spec(),))
+        monkeypatch.setattr(
+            ingest.tables, "UNUSED_RESOURCES", {"res-pop": "test", "res-messy": "test"}
+        )
+        return tmp_path
+
+    def args(self, snapshot, raw) -> list[str]:
+        return [
+            "--raw", str(raw),
+            "--manifest", str(snapshot / "manifest.json"),
+            "--db", str(snapshot / "boston.duckdb"),
+        ]
+
+    def test_build_seals_the_manifest_and_verifies(self, snapshot, raw, capsys) -> None:
+        from ingest.build_db import main
+        from ingest.verify_snapshot import main as verify
+
+        assert main(self.args(snapshot, raw)) == 0
+        sealed = Manifest.read(snapshot / "manifest.json")
+        assert sealed.duckdb_sha256 and sealed.content_sha256
+        assert "crime_incidents" in capsys.readouterr().out
+
+        verify_args = ["--manifest", str(snapshot / "manifest.json"), "--db", str(snapshot / "boston.duckdb")]
+        assert verify(verify_args) == 0
+        assert "ok" in capsys.readouterr().out
+
+        (snapshot / "boston.duckdb").write_bytes(b"tampered")
+        assert verify(verify_args) == 1
+        assert "checksum mismatch" in capsys.readouterr().err
+
+    def test_coverage_failure_builds_nothing_and_seals_nothing(
+        self, snapshot, raw, monkeypatch, capsys
+    ) -> None:
+        import ingest.tables
+        from ingest.build_db import main
+
+        monkeypatch.setattr(ingest.tables, "UNUSED_RESOURCES", {"res-pop": "test"})
+        assert main(self.args(snapshot, raw)) == 1
+        assert "res-messy" in capsys.readouterr().err
+        assert not (snapshot / "boston.duckdb").exists()
+        assert Manifest.read(snapshot / "manifest.json").duckdb_sha256 is None
+
+    def test_unsealed_manifest_fails_verification(self, snapshot, capsys) -> None:
+        from ingest.verify_snapshot import main as verify
+
+        assert verify(["--manifest", str(snapshot / "manifest.json"), "--db", str(snapshot / "x.duckdb")]) == 1
+        assert "never sealed" in capsys.readouterr().err

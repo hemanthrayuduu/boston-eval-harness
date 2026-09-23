@@ -11,7 +11,8 @@ log line still says success.
 
 Some resources are deliberately not fetched: Analyze Boston publishes each
 boundary dataset six ways (CSV, GeoJSON, KML, shapefile, an ArcGIS endpoint, a
-hub page), and a PDF rendering beside some tables. Those are listed as skipped,
+hub page), and a PDF rendering beside some tables. KML and shapefile duplicate
+the GeoJSON's geometry; the rest duplicate the CSV. Those are listed as skipped,
 not failed -- otherwise every pull exits non-zero and a real failure hides among
 the expected ones. The safety net is per dataset: one that yields nothing at all
 is a failure whatever the reason.
@@ -32,8 +33,9 @@ from ingest.manifest import Manifest, ResourceEntry
 __all__ = ["PullReport", "pull", "ALTERNATE_FORMATS"]
 
 # Renderings of data the same dataset also ships in a parseable format. Verified
-# against the live catalog on 2026-09-22: every dataset carrying one of these
-# also has a CSV with the same fields (boundary geometry included, as shape_wkt).
+# against the live catalog on 2026-09-23: every dataset carrying one of these
+# also has a CSV or GeoJSON with the same fields. For the boundary datasets the
+# geometry survives only via the GeoJSON -- the CSV's shape_wkt is empty at source.
 ALTERNATE_FORMATS = frozenset(
     {"html", "arcgis geoservices rest api", "kml", "kmz", "shp", "pdf"}
 )

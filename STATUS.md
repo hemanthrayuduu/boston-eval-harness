@@ -14,8 +14,8 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **260, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
-| Data | **First live pull done 2026-09-23:** 53 resources, 2,262,297 rows, 54 MB Parquet in `data/raw/` (gitignored). `data/manifest.json` committed but unsealed. No DuckDB file yet (needs B5). See §4a. |
+| Tests | **274, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 11 tables, 1,906,052 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | None. No `claims/` directory. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
 | CI | None. No `.github/workflows/`. |
@@ -37,8 +37,9 @@ this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
 | 1 | CKAN client, datastore plus direct-download fallback | `ingest/ckan_client.py`, `ingest/http.py` | Done, tested offline against fakes |
 | 1 | Pull to Parquet, seal manifest | `ingest/pull.py` (`python -m ingest.pull`), `ingest/manifest.py` | Done. **Run live** 2026-09-23: 0 failures, 9 alternate renderings skipped and listed |
 | 1 | XLSX parsing (all sheets), fallback when the datastore is empty | `ingest/ckan_client.py` | Done. Needed for the offense-code table and field dictionaries |
-| 1 | Parquet → DuckDB with measured cast loss and dual checksums | `ingest/build_db.py` | Done as a library. **No CLI entry point** (`build_database()` / `seal_manifest()` only) |
-| 1 | Snapshot verification | `ingest/manifest.py::verify_snapshot` | Done as a function. No `verify_snapshot.py` CLI. |
+| 1 | Parquet → DuckDB with measured cast loss and dual checksums | `ingest/build_db.py` (`python -m ingest.build_db`) | Done. Multi-resource tables, strptime formats, coverage check, seals the manifest |
+| 1 | Snapshot table definitions | `ingest/tables.py` | Done. 11 tables from 20 resources; 33 resources listed as unused, each with a reason |
+| 1 | Snapshot verification | `ingest/verify_snapshot.py` (`python -m ingest.verify_snapshot`) | Done |
 | 2 | Dimensions with written justifications | `specs/dimensions.py` | Done (measure, window, geography, denominator, offense_set, missing_geo) |
 | 2 | Per-claim spec space, capped at 48 | `specs/space.py` | Done |
 | 2 | Claim assertions (change / level / comparison / rank) | `specs/assertions.py` | Done |
@@ -59,7 +60,7 @@ Phases 3 and 6–12 have not started.
 
 ## 3. Bugs and gaps found in this review
 
-B1–B4 fixed 2026-09-22. B5 and B6 still open. B7 is new.
+B1–B4 fixed 2026-09-22, B5 fixed 2026-09-23. B6 still open. B7 is new.
 
 - ~~**B1. Sandbox fails on macOS.**~~ **Fixed.** `env/_worker.py::_apply_memory_cap` calls
   `setrlimit(RLIMIT_AS, …)`. Darwin rejects that with `ValueError: current limit exceeds maximum
@@ -80,8 +81,7 @@ B1–B4 fixed 2026-09-22. B5 and B6 still open. B7 is new.
 - ~~**B3. Two catalog slugs are wrong** (`ingest/catalog.txt`).~~ **Fixed.** See §4.
 - ~~**B4. README is stale.**~~ **Fixed.** It says "169 tests" and doesn't list ingest as done. It should say 249
   tests and add the ingest line.
-- **B5. No `build_db` or `verify_snapshot` CLI.** The roadmap's quick-reference commands
-  (`python -m ingest.build_db`, `python -m ingest.verify_snapshot`) don't exist yet.
+- ~~**B5. No `build_db` or `verify_snapshot` CLI.**~~ **Fixed.** Both exist (see §4b).
 - **B6. Toolchain.** `uv` isn't installed on this Mac, and the system `python3` is 3.9. The
   project needs `>=3.12` (`/opt/homebrew/bin/python3.12` is present). Tests were run from a
   throwaway venv: `python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'`.
@@ -124,9 +124,13 @@ Also on CKAN and relevant to the spec curve:
 The first attempt with the original code got 50 resources and 12 failures:
 - 3 XLSX data dictionaries are marked datastore-active but serve 0 rows there. Fix: fall back to the file.
 - XLSX wasn't parsed at all. Fix: `fastexcel`, reading every sheet.
-- 8 boundary resources (KML, SHP, ArcGIS, HTML) plus 1 PDF are alternate renderings of CSVs
-  that are already fetched. The boundary CSVs carry geometry as `shape_wkt`. Fix: list them as
-  skipped. A dataset that yields nothing still fails.
+- 8 boundary resources (KML, SHP, ArcGIS, HTML) plus 1 PDF are alternate renderings of data
+  that's already fetched. Fix: list them as skipped. A dataset that yields nothing still fails.
+- **Correction:** I first wrote that the boundary CSVs carry geometry as `shape_wkt`. That was
+  wrong, inferred from column names without checking values: `shape_wkt` is **empty at source**.
+  The geometry exists only in the GeoJSON, and the parser was dropping it. Fixed: GeoJSON
+  geometry is now kept as a `_geometry` column, and the snapshot uses the GeoJSON resources for
+  `districts` and `neighborhoods`.
 
 Other checks:
 - **Both fetch paths agree:** for `shootings`, the datastore and direct download produce identical
@@ -144,8 +148,12 @@ Other checks:
    12% (one row per offense). From 2019 on, rows equal incidents. Counting rows versus incidents
    manufactures a trend break at 2019. That's a candidate for a new spec dimension (count unit)
    and a limitation doc (`LIM-SCHEMA-BREAK-2019`).
-3. **Timestamp format changes:** `2016-01-01 00:30:00` in older rows versus
-   `2026-09-20 02:41:00+00` in newer ones. `build_db` casts must accept both.
+3. **Timestamp format changes:** `2016-01-01 00:30:00` in the yearly files versus
+   `2026-09-20 02:41:00+00` in the "2023 to Present" file (and in `shootings`). **The `+00` is a
+   mislabel. These are local times.** The hour-of-day distribution of `+00` rows matches the
+   unstamped rows hour for hour, where UTC would shift it 4–5h. Of 1,946 shootings that match a
+   crime incident, 997 carry the identical timestamp and 5 differ by 4–5h. The snapshot loads
+   all of them as `TIMESTAMP` (no zone) in local time.
 4. **`SHOOTING` has three encodings:** `0`/`1`, `Y`, and NULL (NULL on 351k rows).
 5. **Bad or missing geo** (null, 0, -1, or out of range) on 2.5–7% of rows per year. District is
    blank or `External` on under 2%.
@@ -154,6 +162,48 @@ Other checks:
 7. **FIO ships as paired contact and person files per year** (28 resources, with names changing
    across systems: RMS vs Mark43). One XLSX key has no header row, so its first data row became
    the header.
+8. **The 2019 grain break in one query:** from 2018 to 2019, rows fall 12% (98,888 → 87,184)
+   while distinct incidents *rise* 0.5% (86,734 → 87,184). "Crime fell 12% in 2019" and "crime
+   was flat in 2019" are both computable from the same table. That's a ready-made
+   spec-sensitive claim.
+9. **312 of 2,258 shootings (14%) have no matching `INCIDENT_NUMBER` in `crime_incidents`.**
+10. **Offense codes are zero-padded in some years' files and not others** (353k rows). All of
+    them cast cleanly to `INTEGER`, which is the join key to `offense_codes_source`.
+11. **Boundary geometry is only in the GeoJSON.** See the correction above.
+
+---
+
+## 4b. Snapshot build (2026-09-23)
+
+`python -m ingest.build_db` then `python -m ingest.verify_snapshot`. The build takes 5s and
+produces 11 tables with 1,906,052 rows. Every cast was measured lossless before it went into
+`ingest/tables.py`.
+
+| Table | Rows | From |
+|---|---|---|
+| `crime_incidents` | 956,125 | 9 yearly resources, identical columns |
+| `crime_incidents_legacy` | 268,056 | Jul 2012 – Aug 2015, older system, `FROMDATE` via strptime |
+| `offense_codes_source` | 576 | `rmsoffensecodes.xlsx` |
+| `shootings` | 2,258 | |
+| `firearm_recovery` | 3,701 | |
+| `fire_incidents` | 596,508 | 2014 onward |
+| `fire_incidents_legacy` | 78,448 | 2012 + 2013, older column layout |
+| `fire_incident_types`, `fire_property_uses` | 188, 154 | code lists |
+| `districts`, `neighborhoods` | 12, 26 | GeoJSON, with `_geometry` |
+
+Left out, each with a reason in `ingest/tables.py`: all 28 FIO resources (deferred, since the
+schemas need harmonising), 3 data dictionaries, and the 2 boundary CSVs (no geometry).
+
+- **Coverage is enforced.** The build refuses to run if any pulled resource is neither loaded nor
+  listed as unused. A new catalog file can't slip through.
+- **Rebuilds move the file hash.** The file hash changed between two consecutive builds of the
+  same data at the same path, while the content hash held. The old docstring claim ("same path
+  is byte-identical") holds only for small tables. Any rebuild re-seals, which the CLI does.
+- **End to end works:** a real query goes through `env.guard` and `env.sandbox` against the
+  snapshot in 134 ms, and the guard still blocks `read_csv(...)`.
+- **Spatial joins will need precomputing.** The sandbox runs with `enable_external_access=false`,
+  which likely blocks loading DuckDB's spatial extension. Neighborhood assignment would then
+  need to happen at build time rather than in agent SQL (see §5).
 
 ---
 
@@ -171,8 +221,10 @@ Work top-down. Tick boxes and move items to §6 as they land.
 
 ### Phase 1: data and claims (the risky track, so start it first)
 - [x] First live pull: `python -m ingest.pull` into `data/raw/` (§4a)
-- [ ] `ingest/build_db.py` CLI (`__main__`), plus `TableSpec`s for the core tables. Union the 9 yearly crime files; casts must handle both timestamp formats (§4a #3)
-- [ ] `ingest/verify_snapshot.py` CLI wrapping `manifest.verify_snapshot`
+- [x] `ingest/build_db.py` CLI plus `TableSpec`s for the core tables (§4b)
+- [x] `ingest/verify_snapshot.py` CLI
+- [ ] Assign each crime incident to a neighborhood at build time (point-in-polygon against `neighborhoods._geometry`), since agent SQL likely can't load the spatial extension. Needed for the `geography=neighborhood` spec option.
+- [ ] FIO harmonisation (RMS vs Mark43, contact vs person files), then load as tables
 - [ ] `ingest/offense_codes.py`: crime vs non-crime lookup, dupes normalized in the lookup, originals kept. **Must include code → UCR part for 2019+** (§4a #1: derive from 2015–18, hand-map the other 34 codes). Source table is `rmsoffensecodes.xlsx` (576 codes, now pulled)
 - [ ] Decide incident vs offense counting grain across the 2019 break (§4a #2). Possibly a new `count_unit` dimension in `specs/dimensions.py`
 - [ ] `ingest/acs_population.py` (Census API, tract level, area-weighted to neighborhood and district). Decide first whether the CKAN population estimates (§4) are enough for denominator #2.
@@ -225,7 +277,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | — | `255b634` | build_db with measured cast loss and dual checksums (249 tests) |
 | 2026-09-22 | — | Status review: found B1–B6 and verified the catalog live |
 | 2026-09-22 | `5fb3510` | Cleanup: portable sandbox memory cap (B1), wheel packages (B2), catalog slugs (B3), README (B4). 251 tests |
-| 2026-09-23 | (this commit) | First live pull: XLSX parsing, empty-datastore fallback, skip list for alternate renderings. Manifest committed, 7 data findings. 260 tests |
+| 2026-09-23 | `2f14e40` | First live pull: XLSX parsing, empty-datastore fallback, skip list for alternate renderings. Manifest committed, 7 data findings. 260 tests |
+| 2026-09-23 | (this commit) | Snapshot build: `build_db`/`verify_snapshot` CLIs, `ingest/tables.py` (11 tables), coverage check, GeoJSON geometry kept. Sealed manifest. 274 tests |
 
 ---
 
