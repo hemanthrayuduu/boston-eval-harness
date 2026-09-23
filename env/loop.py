@@ -13,10 +13,10 @@ Shape of an episode:
    environment and its result -- error or not -- goes back into the conversation.
 3. A valid ``submit_verdict`` ends the episode.
 4. A turn with no tool call gets one nudge, and counts against the budget.
-5. When the step budget runs out, the model gets one final turn with only
-   ``submit_verdict`` available. If it still does not submit, the episode ends
-   without a verdict (``step_budget_exhausted``); scoring counts that as a miss
-   rather than guessing.
+5. When the step budget runs out, the model gets up to two final turns with
+   only ``submit_verdict`` available and a tool call required. If it still does
+   not submit, the episode ends without a verdict (``step_budget_exhausted``);
+   scoring counts that as a miss. A verdict written as prose is never parsed.
 
 The model is anything implementing :class:`Model`; the scaffold anything
 implementing :class:`Scaffold`. Phase 8 swaps both.
@@ -85,10 +85,18 @@ class ModelResponse:
     response_id: str | None = None
     provider_fingerprint: str | None = None
     cached: bool = False
+    finish_reason: str | None = None
+    """Why the provider stopped, e.g. "tool_calls", "stop", or "length" (output cap hit)."""
 
 
 class Model(Protocol):
-    def respond(self, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> ModelResponse: ...
+    def respond(
+        self, messages: Sequence[Message], tools: Sequence[ToolSpec], tool_choice: str | None = None
+    ) -> ModelResponse:
+        """``tool_choice="required"`` asks the provider to force a tool call; the
+        loop sends it only on the final, submit-only turn. Adapters without the
+        feature may ignore it."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -161,6 +169,8 @@ class SingleShotScaffold:
 
 _NUDGE = "Use a tool to inspect the data, or call submit_verdict if you are done."
 _FORCE = "You are out of steps. Call submit_verdict now with your best verdict."
+_FORCE_AGAIN = "Respond only with a submit_verdict tool call. No other text."
+FORCED_ATTEMPTS = 2
 
 
 def _prompt_hash(messages: Sequence[Message], tools: Sequence[ToolSpec]) -> str:
@@ -206,13 +216,16 @@ def run_episode(
             error=error,
         )
 
-    def turn(step: int, offered: tuple[str, ...] | None) -> bool | str:
+    def turn(step: int, offered: tuple[str, ...] | None, force: bool = False) -> bool | str:
         """One model turn. True when a verdict was accepted; an error string on a fatal failure."""
         tools = env.specs(offered)
         prompt_hash = _prompt_hash(state.messages, tools)
         t0 = time.perf_counter()
         try:
-            response = model.respond(state.messages, tools)
+            if force:
+                response = model.respond(state.messages, tools, tool_choice="required")
+            else:
+                response = model.respond(state.messages, tools)
         except Exception as err:  # the model is outside our control; its failure is data
             return f"{type(err).__name__}: {err}"
         state.llm_calls.append(LLMCall(
@@ -257,11 +270,15 @@ def run_episode(
         if outcome:
             return finish(Termination.SUBMITTED)
 
-    # Out of steps: one last turn with only submit_verdict.
-    state.messages.append(Message("user", _FORCE))
-    outcome = turn(step_budget, ("submit_verdict",))
-    if isinstance(outcome, str):
-        return finish(Termination.FATAL_ERROR, outcome)
-    if outcome:
-        return finish(Termination.SUBMITTED)
+    # Out of steps: submit-only turns, a tool call required.
+    for attempt in range(FORCED_ATTEMPTS):
+        if not (attempt and state.messages[-1].content == _NUDGE):
+            state.messages.append(Message("user", _FORCE if attempt == 0 else _FORCE_AGAIN))
+        else:
+            state.messages[-1] = Message("user", _FORCE_AGAIN)
+        outcome = turn(step_budget + attempt, ("submit_verdict",), force=True)
+        if isinstance(outcome, str):
+            return finish(Termination.FATAL_ERROR, outcome)
+        if outcome:
+            return finish(Termination.SUBMITTED)
     return finish(Termination.STEP_BUDGET)

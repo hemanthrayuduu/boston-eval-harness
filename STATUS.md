@@ -14,7 +14,7 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **455, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **458, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | **Corpus v0.2.0: 151 claims.** 108 from BPD's weekly reports (`claims/corpus/bpd.jsonl`, selected from 29,661 candidates) and 43 hand-sourced from 11 news and official pages (`claims/hand_sourced.toml` → `claims/corpus/hand.jsonl`). See §4g–4i and `claims/CHANGELOG.md`. |
 | LLM calls | None yet. The agent environment and loop are built and run end to end with a scripted model (§4l). **Free hosted models work through the new OpenAI-compatible adapter; they need your free OpenRouter or Groq key in `.env`** (§4l). |
@@ -236,6 +236,32 @@ Other checks:
     - Free endpoints aren't version-pinned (the list changes monthly), so their numbers are for
       development, not publication (see `RunConfig`'s pinning rule).
     - Tool-calling reliability varies, so smoke-test a model before relying on it.
+- **First real-model runs (2026-09-23), with your OpenRouter free key:**
+  - **Upstream capacity failures:** `qwen/qwen3.8-27b:free` and `google/gemma-4-31b-it:free`
+    both returned 429 "temporarily rate-limited upstream". A first
+    `nvidia/nemotron-3-super-120b-a12b:free` attempt got 503 "provider overloaded".
+  - **Nemotron 3 Super did run, twice, using tools well.** It had zero tool errors. It counted
+    victims and incidents and pulled five years of history. In its last message it correctly
+    noted that the Herald's "116" matches the *victim* count (114), not incidents (96). But it
+    spent the whole 10- and 12-step budgets and answered the forced turn with prose instead of
+    `submit_verdict`, so there was no verdict.
+  - **A third run** recovered from a guard parse error (an alias starting with a digit), then
+    stalled on a read timeout after 6 steps and 29 minutes.
+  - **Harness fixes from these runs:**
+    - retry upstream errors that OpenRouter returns inside a 200 body
+    - retry transport timeouts and connection drops
+    - send `tool_choice: "required"` on the forced turn
+    - allow 2 forced attempts, the second stricter (still no prose parsing)
+    - raise the output cap to 8,192 tokens so reasoning models can finish
+    - record `finish_reason`
+  - **So free tiers are too flaky for anything but smoke tests today.** OpenRouter's key
+    endpoint reports credit usage in dollars, not free-request counts, so the 50-a-day
+    remainder isn't observable.
+  - **Paid versions of the same open-weight models are cheap.** At about 40K input and 3K output
+    tokens per claim (measured on the Nemotron runs), a full 151-claim pass costs about $0.69
+    (Nemotron 3 Super), $0.70 (Gemma 4 31B), $0.54 (DeepSeek V4 Flash) or $1.18
+    (gpt-oss-120b). Buying $10 of OpenRouter credit also lifts the free cap to 1,000 requests a
+    day.
 
 Two scoring issues the end-to-end run exposed:
 1. **`value_in_range` has no tolerance.** The agent reported −3.4 against a curve range starting
@@ -820,7 +846,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `9ceb842` | `specs/compute.py` plus `specs/run.py`: curves and v0 labels for all 151 claims; `offense_mapping` dimension; 5% underdetermined (provisional). 413 tests |
 | 2026-09-23 | `786a0d3` | Phase 3 reproducibility audit: 305 reports vs open data, domestic-assault exclusion found, 4.3% revisions, 3–4 point favorable bias in weekly comparisons. 418 tests |
 | 2026-09-23 | `db15a92` | Phase 4 agent environment: tools, loop, scaffolds, scripted and Ollama models; scripted end-to-end run scored; corrected the Herald/Globe measure swap. 450 tests |
-| 2026-09-23 | (this commit) | OpenAI-compatible adapter for free hosted models (OpenRouter, Groq) plus `env.smoke`; free-model survey. 455 tests |
+| 2026-09-23 | `addbd60` | OpenAI-compatible adapter for free hosted models (OpenRouter, Groq) plus `env.smoke`; free-model survey. 455 tests |
+| 2026-09-23 | (this commit) | First real-model runs on OpenRouter free models; adapter hardening from them (embedded upstream errors, transport retries, forced `tool_choice`, second forced attempt, 8K output). 458 tests |
 
 ---
 

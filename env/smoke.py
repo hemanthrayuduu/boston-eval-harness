@@ -37,6 +37,17 @@ from specs.labels import derive_label
 DEFAULT_CLAIM = "hand-herald-20251206-shootings-116-vs-120"
 
 
+class _Recording:
+    """Wraps a model to keep its last response, for printing."""
+
+    def __init__(self, inner):
+        self.inner, self.last = inner, None
+
+    def respond(self, messages, tools, tool_choice=None):
+        self.last = self.inner.respond(messages, tools, tool_choice=tool_choice)
+        return self.last
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run one claim end to end with a real model.")
     parser.add_argument("--provider", default="openrouter")
@@ -54,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     evaluator = SnapshotEvaluator.open(args.db, args.manifest, corpus)  # verifies the snapshot
     docs = load_limitations()
     env = Environment(args.db, docs)
-    model = OpenAICompatibleModel(args.model, provider=args.provider)
+    model = _Recording(OpenAICompatibleModel(args.model, provider=args.provider))
     task = Task(claim.claim_id, claim.paraphrase, claim.source.organization, claim.source.published,
                 date.fromisoformat(manifest.snapshot_date))
 
@@ -72,6 +83,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"verdict: {v.verdict}  spec_sensitive={v.spec_sensitive}  value={v.computed_value}  cites={list(v.limitation_ids)}")
         print(f"reasoning: {v.reasoning[:400]}")
     print(f"tokens: {trajectory.total_tokens:,}  cost: ${trajectory.total_cost_usd:.4f}  model calls: {len(trajectory.llm_calls)}")
+    if model.last is not None and model.last.content.strip():
+        # The trace keeps no message text; for a smoke run the model's last words help.
+        print(f"model's last message (finish_reason={model.last.finish_reason}): {model.last.content.strip()[:600]}")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     TraceWriter(args.out).append(trajectory)

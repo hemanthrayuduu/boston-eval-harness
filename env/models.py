@@ -37,9 +37,11 @@ class ScriptedModel:
     fallback: ModelResponse = field(default_factory=lambda: ModelResponse(content="(no more scripted turns)"))
     seen: list[tuple[list[Message], list[str]]] = field(default_factory=list)
     """What the model was shown each turn: the conversation and the tool names."""
+    tool_choices: list[str | None] = field(default_factory=list)
 
-    def respond(self, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> ModelResponse:
+    def respond(self, messages: Sequence[Message], tools: Sequence[ToolSpec], tool_choice: str | None = None) -> ModelResponse:
         self.seen.append((list(messages), [t.name for t in tools]))
+        self.tool_choices.append(tool_choice)
         return self.responses.pop(0) if self.responses else self.fallback
 
 
@@ -77,7 +79,8 @@ class OllamaModel:
             out.append(item)
         return out
 
-    def respond(self, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> ModelResponse:
+    def respond(self, messages: Sequence[Message], tools: Sequence[ToolSpec], tool_choice: str | None = None) -> ModelResponse:
+        # Ollama has no tool_choice; the forced turn relies on the prompt alone.
         options: dict[str, Any] = {"temperature": self.temperature}
         if self.seed is not None:
             options["seed"] = self.seed
@@ -124,10 +127,16 @@ PROVIDERS: dict[str, dict[str, str | None]] = {
 
 
 class ProviderError(Exception):
-    def __init__(self, message: str, status: int | None = None, retry_after: float | None = None):
+    def __init__(self, message: str, status: int | None = None, retry_after: float | None = None, transient: bool = False):
         super().__init__(message)
         self.status = status
         self.retry_after = retry_after
+        self.transient = transient
+        """A transport failure (timeout, dropped connection): worth retrying."""
+
+    @property
+    def retryable(self) -> bool:
+        return self.transient or self.status in (429, 500, 502, 503, 504)
 
 
 def _api_key(name: str | None) -> str | None:
@@ -148,7 +157,10 @@ def _api_key(name: str | None) -> str | None:
 def _post_chat_with_requests(url: str, payload: dict[str, Any], headers: dict[str, str], timeout: float) -> dict[str, Any]:
     import requests
 
-    response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+    except (requests.Timeout, requests.ConnectionError) as err:
+        raise ProviderError(f"transport failure: {err}", transient=True) from err
     if response.status_code >= 400:
         retry_after = response.headers.get("Retry-After")
         raise ProviderError(
@@ -175,7 +187,8 @@ class OpenAICompatibleModel:
     api_key: str | None = field(default=None, repr=False)
     temperature: float = 0.0
     seed: int | None = 0
-    max_tokens: int = 2048
+    max_tokens: int = 8192
+    """Room for reasoning models to think and still emit the tool call."""
     timeout_s: float = 180.0
     max_retries: int = 4
     post_chat: Callable[[str, dict[str, Any], dict[str, str], float], dict[str, Any]] = _post_chat_with_requests
@@ -206,7 +219,7 @@ class OpenAICompatibleModel:
             out.append(item)
         return out
 
-    def respond(self, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> ModelResponse:
+    def respond(self, messages: Sequence[Message], tools: Sequence[ToolSpec], tool_choice: str | None = None) -> ModelResponse:
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": self._messages(messages),
@@ -216,6 +229,8 @@ class OpenAICompatibleModel:
         }
         if self.seed is not None:
             payload["seed"] = self.seed
+        if tool_choice:
+            payload["tool_choice"] = tool_choice
         if self.provider == "openrouter":
             payload["usage"] = {"include": True}
         headers = {"Content-Type": "application/json"}
@@ -225,14 +240,17 @@ class OpenAICompatibleModel:
         for attempt in range(self.max_retries + 1):
             try:
                 data = self.post_chat(f"{self.base_url}/chat/completions", payload, headers, self.timeout_s)
+                if data.get("error"):
+                    # OpenRouter can return an upstream failure inside a 200 body;
+                    # its code says whether it is worth retrying.
+                    error = data["error"]
+                    code = error.get("code") if isinstance(error, dict) else None
+                    raise ProviderError(f"provider error: {error}", status=code if isinstance(code, int) else None)
                 break
             except ProviderError as err:
-                retryable = err.status in (429, 500, 502, 503, 504)
-                if not retryable or attempt == self.max_retries:
+                if not err.retryable or attempt == self.max_retries:
                     raise
                 self.sleep(err.retry_after if err.retry_after is not None else min(60.0, 2.0 ** (attempt + 1)))
-        if data.get("error"):
-            raise ProviderError(f"provider error: {data['error']}")
 
         choice = (data.get("choices") or [{}])[0]
         message = choice.get("message") or {}
@@ -255,4 +273,5 @@ class OpenAICompatibleModel:
             cost_usd=float(usage.get("cost") or 0.0),
             response_id=data.get("id"),
             provider_fingerprint=data.get("provider") or data.get("system_fingerprint"),
+            finish_reason=choice.get("finish_reason"),
         )

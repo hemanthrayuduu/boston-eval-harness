@@ -87,6 +87,17 @@ def test_budget_exhaustion_forces_a_submit_only_turn(env) -> None:
     assert trajectory.termination == Termination.SUBMITTED
     assert model.seen[-1][1] == ["submit_verdict"]
     assert "out of steps" in model.seen[-1][0][-1].content
+    # Only the forced turn asks the provider to require a tool call.
+    assert model.tool_choices == [None, None, "required"]
+
+
+def test_second_forced_attempt_can_still_submit(env) -> None:
+    model = ScriptedModel([call("list_tables"), ModelResponse(content="Let me think out loud instead..."),
+                           call("submit_verdict", verdict="supported")])
+    trajectory = run(model, env, budget=1)
+    assert trajectory.termination == Termination.SUBMITTED
+    assert model.tool_choices == [None, "required", "required"]
+    assert model.seen[-1][0][-1].content == "Respond only with a submit_verdict tool call. No other text."
 
 
 def test_never_submitting_ends_without_a_verdict(env) -> None:
@@ -209,6 +220,33 @@ class TestOpenAICompatibleAdapter:
 
         assert self.model(poster).respond([Message("user", "u")], env.specs()).tool_calls
         assert len(attempts) == 3
+
+    def test_upstream_error_inside_a_200_body_is_retried(self, env) -> None:
+        """OpenRouter reports an overloaded upstream as a 200 with an error body."""
+        attempts = []
+
+        def poster(url, payload, headers, timeout):
+            attempts.append(1)
+            if len(attempts) == 1:
+                return {"error": {"message": "Upstream error: Service temporarily overloaded", "code": 503}}
+            return self.RESPONSE
+
+        assert self.model(poster).respond([Message("user", "u")], env.specs()).tool_calls
+        assert len(attempts) == 2
+
+    def test_transport_timeout_is_retried(self, env) -> None:
+        from env.models import ProviderError
+
+        attempts = []
+
+        def poster(url, payload, headers, timeout):
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise ProviderError("transport failure: read timed out", transient=True)
+            return self.RESPONSE
+
+        assert self.model(poster).respond([Message("user", "u")], env.specs()).tool_calls
+        assert len(attempts) == 2
 
     def test_non_retryable_error_raises_and_the_loop_records_it(self, env) -> None:
         from env.models import ProviderError
