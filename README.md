@@ -29,7 +29,7 @@ notice?**
 
 ## Status
 
-450 tests, all offline (no network, no API keys, no data snapshot required).
+455 tests, all offline (no network, no API keys, no data snapshot required).
 Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 
 - [x] Feasibility check on claim sourcing (ClaimBench §0)

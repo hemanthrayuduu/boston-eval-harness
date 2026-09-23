@@ -14,10 +14,10 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **450, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **455, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | **Corpus v0.2.0: 151 claims.** 108 from BPD's weekly reports (`claims/corpus/bpd.jsonl`, selected from 29,661 candidates) and 43 hand-sourced from 11 news and official pages (`claims/hand_sourced.toml` → `claims/corpus/hand.jsonl`). See §4g–4i and `claims/CHANGELOG.md`. |
-| LLM calls | None yet. The agent environment and loop are built and run end to end with a scripted model (§4l). A real model needs your choice: an Ollama model to pull, or an API key. |
+| LLM calls | None yet. The agent environment and loop are built and run end to end with a scripted model (§4l). **Free hosted models work through the new OpenAI-compatible adapter; they need your free OpenRouter or Groq key in `.env`** (§4l). |
 | CI | None. No `.github/workflows/`. |
 
 **In one line:** the parts that need no data and no LLM are built and tested: guard, sandbox, run
@@ -217,6 +217,25 @@ Other checks:
   too.
 - **No real model has run yet.** No API keys are set. Ollama is installed and its server is up,
   but it has no models pulled.
+- **Free hosted models (checked 2026-09-23):**
+  - **OpenRouter**'s public models API lists 20 models that are free (`:free`) *and* support tool
+    calling, including open-weight Qwen 3.8 27B, Gemma 4 31B, and NVIDIA Nemotron 3 Super 120B
+    and Ultra 550B. Limits: 20 requests a minute, and 50 a day without purchased credit (1,000
+    a day once $10 has been bought at any point). No card is needed for the free tier.
+  - **Groq**'s free tier has `gpt-oss-120b`, `gpt-oss-20b` and `qwen3.8-27b` at 10–30
+    requests a minute and up to 14,400 a day, but tight tokens-per-minute (1.2K–15K).
+  - Both speak the OpenAI chat-completions protocol, so **`env.models.OpenAICompatibleModel`
+    covers both, and Ollama's `/v1` too**. It has provider presets, reads keys from the
+    environment or a gitignored `.env`, never includes the key in its repr, and retries 429 and
+    5xx responses with Retry-After.
+  - **`python -m env.smoke --provider openrouter --model qwen/qwen3.8-27b:free`** runs one claim,
+    prints each step, appends the trajectory to `runs/smoke/`, and scores it.
+  - **Caveats:**
+    - An episode is about 6–12 requests, so 50 a day means about 5 claims a day. The whole
+      corpus needs the 1,000-a-day tier or Groq.
+    - Free endpoints aren't version-pinned (the list changes monthly), so their numbers are for
+      development, not publication (see `RunConfig`'s pinning rule).
+    - Tool-calling reliability varies, so smoke-test a model before relying on it.
 
 Two scoring issues the end-to-end run exposed:
 1. **`value_in_range` has no tolerance.** The agent reported −3.4 against a curve range starting
@@ -754,7 +773,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [x] `env/tools.py`: list_tables, describe_table, query, read_limitation_doc, submit_verdict; errors as data (§4l). `compute` and `search_schema` deferred
 - [x] `env/loop.py` plus `env/models.py`: step budget, forced submit, nudges, timeout, pluggable scaffold (ReAct, single-shot); scripted and Ollama adapters (§4l)
 - [x] **Phase 4 DoD:** malicious and runaway queries contained at the tool layer; one claim end to end (scripted agent on the real snapshot, traced, replayed, scored)
-- [ ] **You: choose a model for the first real run.** Either pull a small tool-calling model into Ollama (a few GB), or put an API key in `.env`
+- [x] OpenAI-compatible adapter (OpenRouter, Groq, Ollama `/v1`) plus `python -m env.smoke` (§4l)
+- [ ] **You: create a free OpenRouter key (no card) at openrouter.ai and add `OPENROUTER_API_KEY=...` to `.env`**, or a Groq key as `GROQ_API_KEY`. Then the first real run is `python -m env.smoke --provider openrouter --model qwen/qwen3.8-27b:free`
 - [ ] Scorer fixes from §4l: a `value_in_range` tolerance; required citations filtered by the tables a claim touches (bumps `SCORER_VERSION`)
 - [ ] `harness/ground_truth.py`: build `GroundTruth` for every claim from `specs/curves.jsonl`, replacing the demo's inline version
 - [ ] `harness/runner.py`: async, semaphore, backoff, k rollouts, resumable using `trace.completed_claim_ids`
@@ -799,7 +819,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `562ba63` | Corpus v0.2.0: 43 hand-sourced claims from 11 verified pages (151 total), schema v2, `ChangeAssertion.bound`. 384 tests |
 | 2026-09-23 | `9ceb842` | `specs/compute.py` plus `specs/run.py`: curves and v0 labels for all 151 claims; `offense_mapping` dimension; 5% underdetermined (provisional). 413 tests |
 | 2026-09-23 | `786a0d3` | Phase 3 reproducibility audit: 305 reports vs open data, domestic-assault exclusion found, 4.3% revisions, 3–4 point favorable bias in weekly comparisons. 418 tests |
-| 2026-09-23 | (this commit) | Phase 4 agent environment: tools, loop, scaffolds, scripted and Ollama models; scripted end-to-end run scored; corrected the Herald/Globe measure swap. 450 tests |
+| 2026-09-23 | `db15a92` | Phase 4 agent environment: tools, loop, scaffolds, scripted and Ollama models; scripted end-to-end run scored; corrected the Herald/Globe measure swap. 450 tests |
+| 2026-09-23 | (this commit) | OpenAI-compatible adapter for free hosted models (OpenRouter, Groq) plus `env.smoke`; free-model survey. 455 tests |
 
 ---
 

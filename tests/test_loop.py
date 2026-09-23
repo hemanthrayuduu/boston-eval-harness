@@ -160,3 +160,79 @@ class TestOllamaAdapter:
         assert [c.name for c in response.tool_calls] == ["query", "submit_verdict"]
         assert response.tool_calls[1].arguments == {"verdict": "supported"}  # JSON string decoded
         assert (response.tokens_in, response.tokens_out) == (812, 34)
+
+
+class TestOpenAICompatibleAdapter:
+    def model(self, poster, **kwargs):
+        from env.models import OpenAICompatibleModel
+
+        return OpenAICompatibleModel("qwen/qwen3.8-27b:free", provider="openrouter", api_key="sk-test",
+                                     post_chat=poster, sleep=lambda s: None, **kwargs)
+
+    RESPONSE = {
+        "id": "gen-1", "model": "qwen/qwen3.8-27b:free", "provider": "SomeHost",
+        "choices": [{"message": {"content": "", "tool_calls": [
+            {"id": "call_1", "type": "function", "function": {"name": "query", "arguments": '{"sql": "SELECT 1"}'}}
+        ]}}],
+        "usage": {"prompt_tokens": 1200, "completion_tokens": 40, "cost": 0},
+    }
+
+    def test_translation_both_ways(self, env) -> None:
+        sent = {}
+
+        def poster(url, payload, headers, timeout):
+            sent.update(url=url, payload=payload, headers=headers)
+            return self.RESPONSE
+
+        messages = [Message("system", "s"), Message("user", "u"),
+                    Message("assistant", "", tool_calls=(ToolRequest("a1", "list_tables", {}),)),
+                    Message("tool", "[]", tool_call_id="a1", name="list_tables")]
+        response = self.model(poster).respond(messages, env.specs())
+        assert sent["url"] == "https://openrouter.ai/api/v1/chat/completions"
+        assert sent["headers"]["Authorization"] == "Bearer sk-test"
+        assert sent["payload"]["messages"][2]["tool_calls"][0]["function"]["arguments"] == "{}"
+        assert sent["payload"]["messages"][3]["tool_call_id"] == "a1"
+        assert sent["payload"]["usage"] == {"include": True}
+        assert response.tool_calls[0] == ToolRequest("call_1", "query", {"sql": "SELECT 1"})
+        assert (response.tokens_in, response.tokens_out, response.provider_fingerprint) == (1200, 40, "SomeHost")
+
+    def test_rate_limit_is_retried_then_succeeds(self, env) -> None:
+        from env.models import ProviderError
+
+        attempts = []
+
+        def poster(url, payload, headers, timeout):
+            attempts.append(1)
+            if len(attempts) < 3:
+                raise ProviderError("HTTP 429", status=429, retry_after=1)
+            return self.RESPONSE
+
+        assert self.model(poster).respond([Message("user", "u")], env.specs()).tool_calls
+        assert len(attempts) == 3
+
+    def test_non_retryable_error_raises_and_the_loop_records_it(self, env) -> None:
+        from env.models import ProviderError
+
+        def poster(url, payload, headers, timeout):
+            raise ProviderError("HTTP 401: bad key", status=401)
+
+        trajectory = run(self.model(poster), env)
+        assert trajectory.termination == Termination.FATAL_ERROR and "401" in trajectory.error
+
+    def test_missing_key_is_a_clear_error_and_keys_never_print(self, monkeypatch, tmp_path) -> None:
+        from env.models import OpenAICompatibleModel
+
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+            OpenAICompatibleModel("m", provider="openrouter")
+        assert "sk-secret" not in repr(OpenAICompatibleModel("m", provider="openrouter", api_key="sk-secret"))
+
+    def test_key_is_read_from_dotenv(self, monkeypatch, tmp_path) -> None:
+        from env.models import OpenAICompatibleModel
+
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text('GROQ_API_KEY="gsk-from-file"\n')
+        model = OpenAICompatibleModel("openai/gpt-oss-120b", provider="groq")
+        assert model.api_key == "gsk-from-file" and model.base_url == "https://api.groq.com/openai/v1"
