@@ -175,6 +175,36 @@ Other checks:
 
 ---
 
+## 4e. Population denominators: CKAN estimates vs Census (2026-09-23), BLOCKED
+
+**The Census API now requires a key.** Keyless requests to `api.census.gov` redirect to
+`missing_key.html`. Keys are free and instant at https://api.census.gov/data/key_signup.html.
+That's a signup with your email, so it's yours to do.
+
+Is the city's own data on CKAN enough instead? **No, not for `acs_5yr` or `decennial`:**
+- `2025-boston-population-estimates-neighborhood-level`: the Planning Department's estimate
+  for Jan 1, 2025. One vintage, **24** tract-approximated neighborhoods (our `neighborhoods`
+  table from the city boundary file has **26**), and no district level.
+- `historical-boston-population-estimates-1950-2020-{tract,neighborhood}-level` (ZIP of
+  per-decade JSON/XLSX): decennial counts 1950–2010 adjusted to 2020 tracts. **But its 2020 is
+  the city's estimate, not the census count.** The city states that **the 2020 Decennial Census
+  and later ACS releases undercounted Boston**, and its estimates correct for that.
+
+So:
+- **ACS 5-year by tract per year** (for year-matched rates) and **2020 decennial by tract** both
+  need the API key.
+- **Recommendation:** add the city estimate as a *third* denominator option (`city_estimate`),
+  not a substitute. The census-vs-city gap is exactly the kind of defensible choice that flips
+  per-capita claims. Also add a `LIM-CENSUS-UNDERCOUNT` doc. Not done yet: it changes
+  `specs/dimensions.py`, and the data isn't loaded.
+- **Geography mismatch to resolve:** 26 city-boundary neighborhoods vs 24 tract-approximated
+  ones. The `tract_rollup` geography option should use the 24 (the dataset
+  `boston-neighborhood-boundaries-approximated-by-2020-census-tracts`).
+- **Rollup to police districts still needs tract geometry.** TIGERweb serves it as GeoJSON
+  without a key (not yet tested). Area weighting needs DuckDB's spatial extension at build time.
+
+---
+
 ## 4d. Decision: counting grain across 2019 (2026-09-23)
 
 The facts:
@@ -300,7 +330,9 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [x] `ingest/offense_codes.py`: UCR part and crime flag per (code, description), description variants normalized, originals kept (§4c)
 - [ ] **You: review the 85 draft labels** in `ingest/offense_code_labels.csv` and flip `reviewed` to `yes` as you go. Start with 1831/1832 (39k rows, moves the drug trend), then 530, 3305, and the `is_crime` overrides. Rebuild afterwards (`python -m ingest.build_db`)
 - [x] Decide incident vs offense counting grain across the 2019 break (§4d): distinct incidents always; new `multi_offense` dimension
-- [ ] `ingest/acs_population.py` (Census API, tract level, area-weighted to neighborhood and district). Decide first whether the CKAN population estimates (§4) are enough for denominator #2.
+- [ ] **BLOCKED on you: get a Census API key** (https://api.census.gov/data/key_signup.html) and put it in `.env` as `CENSUS_API_KEY=...` (`.env` is gitignored)
+- [ ] `ingest/acs_population.py` (Census API, tract level, area-weighted to neighborhood and district). Decided (§4e): the CKAN estimates are *not* enough for `acs_5yr`/`decennial`; they're a candidate third option `city_estimate`
+- [ ] Add the city population datasets and the tract-approximated neighborhood boundaries to `ingest/catalog.txt`. The historical data is a ZIP (unsupported format), so it needs a parser or a manual extract
 - [ ] `corpus/limitations/*.md`: 10–14 docs with stable `LIM-*` IDs
 - [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries (7 seeded in §4a)
 - [ ] `claims/sources/`: scrape the BPD weekly crime-stats archive with dates preserved
@@ -353,7 +385,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `2f14e40` | First live pull: XLSX parsing, empty-datastore fallback, skip list for alternate renderings. Manifest committed, 7 data findings. 260 tests |
 | 2026-09-23 | `cde858c` | Snapshot build: `build_db`/`verify_snapshot` CLIs, `ingest/tables.py` (11 tables), coverage check, GeoJSON geometry kept. Sealed manifest. 274 tests |
 | 2026-09-23 | `3ec16cb` | Offense-code lookup: `offense_codes` derived table, 85 draft hand labels, derived-table support in `build_db`, failed builds leave no file. 300 tests |
-| 2026-09-23 | (this commit) | Counting-grain decision: distinct incidents always, `multi_offense` dimension added (§4d). 300 tests |
+| 2026-09-23 | `ae8d93d` | Counting-grain decision: distinct incidents always, `multi_offense` dimension added (§4d). 300 tests |
+| 2026-09-23 | (this commit) | Population denominators investigated (§4e): Census API needs a key (blocked); city estimates correct a census undercount, so they're a third option, not a substitute |
 
 ---
 
