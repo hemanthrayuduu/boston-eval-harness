@@ -21,7 +21,7 @@ grounding ablations measure whether an agent can *use* a limitation rather than 
 | ID | Title | Spec dimensions |
 |---|---|---|
 | [`LIM-CENSUS-UNDERCOUNT`](LIM-CENSUS-UNDERCOUNT.md) | Population denominators disagree, and the city says the census undercounted | `denominator`, `geography` |
-| [`LIM-EXCLUDED-OFFENSES`](LIM-EXCLUDED-OFFENSES.md) | Sexual offenses are absent from the published crime data | `offense_set` |
+| [`LIM-EXCLUDED-OFFENSES`](LIM-EXCLUDED-OFFENSES.md) | Sexual offenses and domestic aggravated assaults are absent from the published crime data | `offense_set` |
 | [`LIM-FIO-POLICE-ACTIVITY`](LIM-FIO-POLICE-ACTIVITY.md) | Field interrogation records measure police activity, not crime | — |
 | [`LIM-LEGACY-SCHEMA-BREAK`](LIM-LEGACY-SCHEMA-BREAK.md) | Before mid-2015 the data comes from a different system | `window`, `offense_set` |
 | [`LIM-MISSING-GEO`](LIM-MISSING-GEO.md) | About 5% of incidents have no location, unevenly by type and year | `missing_geo`, `geography` |

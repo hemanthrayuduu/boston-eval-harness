@@ -14,7 +14,7 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **413, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **418, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | **Corpus v0.2.0: 151 claims.** 108 from BPD's weekly reports (`claims/corpus/bpd.jsonl`, selected from 29,661 candidates) and 43 hand-sourced from 11 news and official pages (`claims/hand_sourced.toml` → `claims/corpus/hand.jsonl`). See §4g–4i and `claims/CHANGELOG.md`. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
@@ -176,6 +176,41 @@ Other checks:
 10. **Offense codes are zero-padded in some years' files and not others** (353k rows). All of
     them cast cleanly to `INTEGER`, which is the join key to `offense_codes_source`.
 11. **Boundary geometry is only in the GeoJSON.** See the correction above.
+
+---
+
+## 4k. Reproducibility audit, Phase 3 (2026-09-23)
+
+`python -m experiments.reproducibility_audit` runs in about 7 seconds with no model. It compares
+every figure in 305 BPD weekly reports (June 2023 to September 2026) with the open data over the
+same windows, using the open-data definition closest to BPD's. The write-up is
+**`experiments/REPRODUCIBILITY.md`**. Generated tables are in
+`experiments/results/reproducibility_audit/tables.md` and `summary.json`.
+
+Findings:
+35. **Shootings reproduce almost exactly:** victims at 0.993 of BPD's figures, with direction
+    agreeing in 99% of reports.
+36. **The open data omits domestic aggravated assaults.** Its aggravated assaults match BPD's
+    *non-domestic* row (median ratio 1.008 across 152 reports) and are 62% of the combined count.
+37. **Rape plus domestic assault explain most of the Part One gap:** the ratio goes from 0.906 to
+    0.914 without rape, and to 0.972 without domestic assault as well. District ratios converge
+    from 0.78–0.98 to 0.93–1.03.
+38. **BPD revises its own figures up by a median 4.3% within a year** (Part One total; 2.4% for
+    robbery to 6.3% for residential burglary).
+39. **So BPD's weekly year-over-year comparisons read 3–4 points too favorable.** They set a
+    preliminary current year against a matured prior year. The gap grows with report age (+0.7
+    points for recent reports, +7 for 2023's), entirely through the current column maturing.
+    BPD reported "down" or "flat" in **73 of 152** weekly Part One reports where the open data
+    now shows "up".
+40. **Unexplained:** residential burglary (0.857) and robbery (0.902). Homicide varies widely
+    (0.77–1.40), which fits ruling-date counting.
+
+What changed as a result:
+- `LIM-EXCLUDED-OFFENSES` now covers domestic aggravated assault.
+- `LIM-PRELIMINARY-DATA` now has the measured revisions and the bias.
+- It explains most of §4j's 46 contradictions. It also means that **checking an old
+  year-over-year claim against today's open data measures maturation as much as the claim.**
+  That's a candidate spec dimension: compare against data as of the claim's date, or as of now.
 
 ---
 
@@ -657,7 +692,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] Engine gaps: gun-recovery channels (`firearm_recovery`), neighborhood geography (4 claims)
 
 ### Phase 3: reproducibility audit (first finding with no model)
-- [ ] `experiments/reproducibility_audit.py`: BPD figure vs best-matching spec, with deltas by category and year and diagnosed causes
+- [x] `experiments/reproducibility_audit.py` plus `experiments/REPRODUCIBILITY.md`: BPD figures vs the open data, deltas by measure, year, district and report age, with diagnosed causes (§4k)
+- [ ] Optional follow-ups: investigate residential burglary and robbery gaps; parse the homicide footnotes (ruled-in-year counts) to test the ruling-date explanation; consider a `data_vintage` spec dimension (claim-date vs current data)
 
 ### Phase 4–5: agent and runner
 - [ ] Add `litellm` dependency; `.env` via `pydantic-settings`; a hello-world call per provider, plus Ollama
@@ -703,7 +739,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `2c0467d` | BPD figure extraction: 113,556 figures from 305 reports, 312 failed consistency checks in BPD's own reports. 351 tests |
 | 2026-09-23 | `9b8b7df` | Claim corpus v0.1.0: schema, 108 BPD claims from 29,661 candidates, 5 hand-verified; `ucr_part` shadowing bug fixed; extractor Grand Total fix. 365 tests |
 | 2026-09-23 | `562ba63` | Corpus v0.2.0: 43 hand-sourced claims from 11 verified pages (151 total), schema v2, `ChangeAssertion.bound`. 384 tests |
-| 2026-09-23 | (this commit) | `specs/compute.py` plus `specs/run.py`: curves and v0 labels for all 151 claims; `offense_mapping` dimension; 5% underdetermined (provisional). 413 tests |
+| 2026-09-23 | `9ceb842` | `specs/compute.py` plus `specs/run.py`: curves and v0 labels for all 151 claims; `offense_mapping` dimension; 5% underdetermined (provisional). 413 tests |
+| 2026-09-23 | (this commit) | Phase 3 reproducibility audit: 305 reports vs open data, domestic-assault exclusion found, 4.3% revisions, 3–4 point favorable bias in weekly comparisons. 418 tests |
 
 ---
 

@@ -1,0 +1,963 @@
+{
+  "citywide_by_measure": {
+    "Aggravated Assault (domestic + non-domestic)": {
+      "direction_agrees": 0.803,
+      "direction_opposite": 0.099,
+      "level_ratio": {
+        "median": 0.619,
+        "n": 152,
+        "p10": 0.569,
+        "p90": 0.666
+      },
+      "pct_within_5_points": 0.513,
+      "reports": 152,
+      "rows": 152
+    },
+    "Auto Theft": {
+      "direction_agrees": 0.724,
+      "direction_opposite": 0.112,
+      "level_ratio": {
+        "median": 1.048,
+        "n": 152,
+        "p10": 0.996,
+        "p90": 1.093
+      },
+      "pct_within_5_points": 0.743,
+      "reports": 152,
+      "rows": 152
+    },
+    "Commercial Burglary": {
+      "direction_agrees": 0.895,
+      "direction_opposite": 0.026,
+      "level_ratio": {
+        "median": 1.007,
+        "n": 152,
+        "p10": 0.981,
+        "p90": 1.046
+      },
+      "pct_within_5_points": 0.316,
+      "reports": 152,
+      "rows": 152
+    },
+    "Domestic Aggravated Assault": {
+      "direction_agrees": 0.132,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.0,
+        "n": 152,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "pct_within_5_points": 0.0,
+      "reports": 152,
+      "rows": 152
+    },
+    "Fatal Shootings": {
+      "direction_agrees": 0.96,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 1.0,
+        "n": 147,
+        "p10": 1.0,
+        "p90": 1.14
+      },
+      "pct_within_5_points": 0.772,
+      "reports": 148,
+      "rows": 149
+    },
+    "Homicide": {
+      "direction_agrees": 0.895,
+      "direction_opposite": 0.059,
+      "level_ratio": {
+        "median": 0.917,
+        "n": 150,
+        "p10": 0.765,
+        "p90": 1.4
+      },
+      "pct_within_5_points": 0.184,
+      "reports": 152,
+      "rows": 152
+    },
+    "Larceny From MV": {
+      "direction_agrees": 0.921,
+      "direction_opposite": 0.007,
+      "level_ratio": {
+        "median": 0.971,
+        "n": 152,
+        "p10": 0.945,
+        "p90": 1.026
+      },
+      "pct_within_5_points": 0.776,
+      "reports": 152,
+      "rows": 152
+    },
+    "Non-Domestic Aggravated Assault": {
+      "direction_agrees": 0.789,
+      "direction_opposite": 0.072,
+      "level_ratio": {
+        "median": 1.008,
+        "n": 152,
+        "p10": 0.972,
+        "p90": 1.065
+      },
+      "pct_within_5_points": 0.461,
+      "reports": 152,
+      "rows": 152
+    },
+    "Non-Fatal Shootings": {
+      "direction_agrees": 0.966,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.983,
+        "n": 149,
+        "p10": 0.96,
+        "p90": 1.016
+      },
+      "pct_within_5_points": 0.899,
+      "reports": 148,
+      "rows": 149
+    },
+    "Other Larceny": {
+      "direction_agrees": 0.868,
+      "direction_opposite": 0.053,
+      "level_ratio": {
+        "median": 0.969,
+        "n": 152,
+        "p10": 0.957,
+        "p90": 1.02
+      },
+      "pct_within_5_points": 0.572,
+      "reports": 152,
+      "rows": 152
+    },
+    "Rape & Attempted": {
+      "direction_agrees": 0.039,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.0,
+        "n": 151,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "pct_within_5_points": 0.0,
+      "reports": 152,
+      "rows": 152
+    },
+    "Residential Burglary": {
+      "direction_agrees": 0.882,
+      "direction_opposite": 0.072,
+      "level_ratio": {
+        "median": 0.857,
+        "n": 152,
+        "p10": 0.809,
+        "p90": 0.896
+      },
+      "pct_within_5_points": 0.592,
+      "reports": 152,
+      "rows": 152
+    },
+    "Robbery & Attempted": {
+      "direction_agrees": 0.888,
+      "direction_opposite": 0.046,
+      "level_ratio": {
+        "median": 0.902,
+        "n": 152,
+        "p10": 0.869,
+        "p90": 0.959
+      },
+      "pct_within_5_points": 0.842,
+      "reports": 152,
+      "rows": 152
+    },
+    "Total Incidents": {
+      "direction_agrees": 0.919,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.991,
+        "n": 149,
+        "p10": 0.959,
+        "p90": 1.021
+      },
+      "pct_within_5_points": 0.899,
+      "reports": 148,
+      "rows": 149
+    },
+    "Total Shooting Victims": {
+      "direction_agrees": 0.987,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.993,
+        "n": 149,
+        "p10": 0.976,
+        "p90": 1.02
+      },
+      "pct_within_5_points": 0.926,
+      "reports": 148,
+      "rows": 149
+    },
+    "Totals": {
+      "direction_agrees": 0.375,
+      "direction_opposite": 0.257,
+      "level_ratio": {
+        "median": 0.906,
+        "n": 152,
+        "p10": 0.891,
+        "p90": 0.943
+      },
+      "pct_within_5_points": 0.612,
+      "reports": 152,
+      "rows": 152
+    },
+    "Totals excluding rape": {
+      "direction_agrees": 0.441,
+      "direction_opposite": 0.243,
+      "level_ratio": {
+        "median": 0.914,
+        "n": 152,
+        "p10": 0.899,
+        "p90": 0.958
+      },
+      "pct_within_5_points": 0.612,
+      "reports": 152,
+      "rows": 152
+    },
+    "Totals excluding rape and domestic aggravated assault": {
+      "direction_agrees": 0.428,
+      "direction_opposite": 0.237,
+      "level_ratio": {
+        "median": 0.972,
+        "n": 152,
+        "p10": 0.955,
+        "p90": 1.031
+      },
+      "pct_within_5_points": 0.599,
+      "reports": 152,
+      "rows": 152
+    }
+  },
+  "citywide_totals_ratio_by_year": {
+    "2023": {
+      "median": 0.919,
+      "n": 25,
+      "p10": 0.917,
+      "p90": 0.923
+    },
+    "2024": {
+      "median": 0.908,
+      "n": 45,
+      "p10": 0.889,
+      "p90": 0.968
+    },
+    "2025": {
+      "median": 0.899,
+      "n": 47,
+      "p10": 0.895,
+      "p90": 0.945
+    },
+    "2026": {
+      "median": 0.905,
+      "n": 35,
+      "p10": 0.888,
+      "p90": 0.944
+    }
+  },
+  "citywide_year_end_by_measure": {
+    "Aggravated Assault (domestic + non-domestic)": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.654,
+        "n": 3,
+        "p10": 0.608,
+        "p90": 0.608
+      },
+      "pct_within_5_points": 0.333,
+      "reports": 3,
+      "rows": 3
+    },
+    "Auto Theft": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 1.047,
+        "n": 3,
+        "p10": 1.028,
+        "p90": 1.028
+      },
+      "pct_within_5_points": 1.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Commercial Burglary": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.995,
+        "n": 3,
+        "p10": 0.981,
+        "p90": 0.981
+      },
+      "pct_within_5_points": 0.667,
+      "reports": 3,
+      "rows": 3
+    },
+    "Domestic Aggravated Assault": {
+      "direction_agrees": 0.333,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.0,
+        "n": 3,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "pct_within_5_points": 0.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Fatal Shootings": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 1.038,
+        "n": 3,
+        "p10": 1.0,
+        "p90": 1.0
+      },
+      "pct_within_5_points": 1.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Homicide": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.892,
+        "n": 3,
+        "p10": 0.774,
+        "p90": 0.774
+      },
+      "pct_within_5_points": 0.333,
+      "reports": 3,
+      "rows": 3
+    },
+    "Larceny From MV": {
+      "direction_agrees": 0.667,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.963,
+        "n": 3,
+        "p10": 0.961,
+        "p90": 0.961
+      },
+      "pct_within_5_points": 1.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Non-Domestic Aggravated Assault": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 1.008,
+        "n": 3,
+        "p10": 0.965,
+        "p90": 0.965
+      },
+      "pct_within_5_points": 0.333,
+      "reports": 3,
+      "rows": 3
+    },
+    "Non-Fatal Shootings": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.981,
+        "n": 3,
+        "p10": 0.964,
+        "p90": 0.964
+      },
+      "pct_within_5_points": 1.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Other Larceny": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.962,
+        "n": 3,
+        "p10": 0.954,
+        "p90": 0.954
+      },
+      "pct_within_5_points": 0.667,
+      "reports": 3,
+      "rows": 3
+    },
+    "Rape & Attempted": {
+      "direction_agrees": 0.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.0,
+        "n": 3,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "pct_within_5_points": 0.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Residential Burglary": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.864,
+        "n": 3,
+        "p10": 0.807,
+        "p90": 0.807
+      },
+      "pct_within_5_points": 0.667,
+      "reports": 3,
+      "rows": 3
+    },
+    "Robbery & Attempted": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.903,
+        "n": 3,
+        "p10": 0.882,
+        "p90": 0.882
+      },
+      "pct_within_5_points": 1.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Total Incidents": {
+      "direction_agrees": 0.667,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.981,
+        "n": 3,
+        "p10": 0.971,
+        "p90": 0.971
+      },
+      "pct_within_5_points": 1.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Total Shooting Victims": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.984,
+        "n": 3,
+        "p10": 0.977,
+        "p90": 0.977
+      },
+      "pct_within_5_points": 1.0,
+      "reports": 3,
+      "rows": 3
+    },
+    "Totals": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.904,
+        "n": 3,
+        "p10": 0.892,
+        "p90": 0.892
+      },
+      "pct_within_5_points": 0.667,
+      "reports": 3,
+      "rows": 3
+    },
+    "Totals excluding rape": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.913,
+        "n": 3,
+        "p10": 0.9,
+        "p90": 0.9
+      },
+      "pct_within_5_points": 0.667,
+      "reports": 3,
+      "rows": 3
+    },
+    "Totals excluding rape and domestic aggravated assault": {
+      "direction_agrees": 1.0,
+      "direction_opposite": 0.0,
+      "level_ratio": {
+        "median": 0.966,
+        "n": 3,
+        "p10": 0.954,
+        "p90": 0.954
+      },
+      "pct_within_5_points": 0.667,
+      "reports": 3,
+      "rows": 3
+    }
+  },
+  "district_totals_ex_rape_domestic_ratio_by_district": {
+    "A01": {
+      "median": 0.951,
+      "n": 152,
+      "p10": 0.926,
+      "p90": 0.981
+    },
+    "A07": {
+      "median": 0.976,
+      "n": 152,
+      "p10": 0.948,
+      "p90": 1.003
+    },
+    "A15": {
+      "median": 0.96,
+      "n": 152,
+      "p10": 0.903,
+      "p90": 1.101
+    },
+    "B02": {
+      "median": 0.93,
+      "n": 152,
+      "p10": 0.899,
+      "p90": 0.984
+    },
+    "B03": {
+      "median": 0.946,
+      "n": 152,
+      "p10": 0.899,
+      "p90": 1.004
+    },
+    "C06": {
+      "median": 0.966,
+      "n": 152,
+      "p10": 0.945,
+      "p90": 1.05
+    },
+    "C11": {
+      "median": 1.013,
+      "n": 152,
+      "p10": 0.978,
+      "p90": 1.038
+    },
+    "D04": {
+      "median": 1.0,
+      "n": 152,
+      "p10": 0.977,
+      "p90": 1.033
+    },
+    "D14": {
+      "median": 0.983,
+      "n": 152,
+      "p10": 0.959,
+      "p90": 1.041
+    },
+    "E05": {
+      "median": 0.947,
+      "n": 152,
+      "p10": 0.922,
+      "p90": 1.031
+    },
+    "E13": {
+      "median": 1.012,
+      "n": 152,
+      "p10": 0.974,
+      "p90": 1.097
+    },
+    "E18": {
+      "median": 1.028,
+      "n": 152,
+      "p10": 0.935,
+      "p90": 1.133
+    }
+  },
+  "district_totals_ratio_by_district": {
+    "A01": {
+      "median": 0.924,
+      "n": 152,
+      "p10": 0.904,
+      "p90": 0.956
+    },
+    "A07": {
+      "median": 0.887,
+      "n": 152,
+      "p10": 0.857,
+      "p90": 0.915
+    },
+    "A15": {
+      "median": 0.916,
+      "n": 152,
+      "p10": 0.859,
+      "p90": 1.058
+    },
+    "B02": {
+      "median": 0.836,
+      "n": 152,
+      "p10": 0.808,
+      "p90": 0.872
+    },
+    "B03": {
+      "median": 0.779,
+      "n": 152,
+      "p10": 0.743,
+      "p90": 0.82
+    },
+    "C06": {
+      "median": 0.928,
+      "n": 152,
+      "p10": 0.903,
+      "p90": 0.998
+    },
+    "C11": {
+      "median": 0.92,
+      "n": 152,
+      "p10": 0.895,
+      "p90": 0.951
+    },
+    "D04": {
+      "median": 0.975,
+      "n": 152,
+      "p10": 0.951,
+      "p90": 1.011
+    },
+    "D14": {
+      "median": 0.935,
+      "n": 152,
+      "p10": 0.906,
+      "p90": 0.978
+    },
+    "E05": {
+      "median": 0.865,
+      "n": 152,
+      "p10": 0.836,
+      "p90": 0.947
+    },
+    "E13": {
+      "median": 0.956,
+      "n": 152,
+      "p10": 0.919,
+      "p90": 1.002
+    },
+    "E18": {
+      "median": 0.927,
+      "n": 152,
+      "p10": 0.838,
+      "p90": 1.0
+    }
+  },
+  "overall": {
+    "area": {
+      "direction_agrees": 0.653,
+      "direction_opposite": 0.097,
+      "level_ratio": {
+        "median": 0.939,
+        "n": 10436,
+        "p10": 0.0,
+        "p90": 1.057
+      },
+      "pct_within_5_points": 0.398,
+      "reports": 152,
+      "rows": 10554
+    },
+    "citywide": {
+      "direction_agrees": 0.716,
+      "direction_opposite": 0.072,
+      "level_ratio": {
+        "median": 0.966,
+        "n": 2719,
+        "p10": 0.0,
+        "p90": 1.045
+      },
+      "pct_within_5_points": 0.572,
+      "reports": 153,
+      "rows": 2724
+    },
+    "district": {
+      "direction_agrees": 0.687,
+      "direction_opposite": 0.09,
+      "level_ratio": {
+        "median": 0.933,
+        "n": 24001,
+        "p10": 0.0,
+        "p90": 1.083
+      },
+      "pct_within_5_points": 0.334,
+      "reports": 152,
+      "rows": 24562
+    }
+  },
+  "pct_gap_by_report_age": {
+    "Other Larceny": {
+      "0-45 days": {
+        "pct_gap_median": 1.9,
+        "ratio_current": 0.958,
+        "ratio_prior": 0.941,
+        "reports": 6
+      },
+      "120-240 days": {
+        "pct_gap_median": 4.79,
+        "ratio_current": 0.989,
+        "ratio_prior": 0.942,
+        "reports": 15
+      },
+      "240-400 days": {
+        "pct_gap_median": 2.51,
+        "ratio_current": 0.958,
+        "ratio_prior": 0.937,
+        "reports": 22
+      },
+      "400-800 days": {
+        "pct_gap_median": 4.05,
+        "ratio_current": 0.969,
+        "ratio_prior": 0.941,
+        "reports": 53
+      },
+      "45-120 days": {
+        "pct_gap_median": 2.81,
+        "ratio_current": 0.965,
+        "ratio_prior": 0.94,
+        "reports": 10
+      },
+      "800-1300 days": {
+        "pct_gap_median": 7.35,
+        "ratio_current": 0.984,
+        "ratio_prior": 0.929,
+        "reports": 46
+      }
+    },
+    "Residential Burglary": {
+      "0-45 days": {
+        "pct_gap_median": 1.07,
+        "ratio_current": 0.8,
+        "ratio_prior": 0.791,
+        "reports": 6
+      },
+      "120-240 days": {
+        "pct_gap_median": 6.09,
+        "ratio_current": 0.843,
+        "ratio_prior": 0.786,
+        "reports": 15
+      },
+      "240-400 days": {
+        "pct_gap_median": 2.05,
+        "ratio_current": 0.826,
+        "ratio_prior": 0.805,
+        "reports": 22
+      },
+      "400-800 days": {
+        "pct_gap_median": 3.82,
+        "ratio_current": 0.857,
+        "ratio_prior": 0.82,
+        "reports": 53
+      },
+      "45-120 days": {
+        "pct_gap_median": 2.76,
+        "ratio_current": 0.84,
+        "ratio_prior": 0.816,
+        "reports": 10
+      },
+      "800-1300 days": {
+        "pct_gap_median": 8.8,
+        "ratio_current": 0.881,
+        "ratio_prior": 0.806,
+        "reports": 46
+      }
+    },
+    "Robbery & Attempted": {
+      "0-45 days": {
+        "pct_gap_median": 3.39,
+        "ratio_current": 0.89,
+        "ratio_prior": 0.863,
+        "reports": 6
+      },
+      "120-240 days": {
+        "pct_gap_median": 5.64,
+        "ratio_current": 0.934,
+        "ratio_prior": 0.871,
+        "reports": 15
+      },
+      "240-400 days": {
+        "pct_gap_median": -1.57,
+        "ratio_current": 0.88,
+        "ratio_prior": 0.887,
+        "reports": 22
+      },
+      "400-800 days": {
+        "pct_gap_median": 2.17,
+        "ratio_current": 0.892,
+        "ratio_prior": 0.873,
+        "reports": 53
+      },
+      "45-120 days": {
+        "pct_gap_median": 2.79,
+        "ratio_current": 0.891,
+        "ratio_prior": 0.868,
+        "reports": 10
+      },
+      "800-1300 days": {
+        "pct_gap_median": 3.08,
+        "ratio_current": 0.919,
+        "ratio_prior": 0.896,
+        "reports": 46
+      }
+    },
+    "Total Shooting Victims": {
+      "0-45 days": {
+        "pct_gap_median": 0.0,
+        "ratio_current": 1.0,
+        "ratio_prior": 1.0,
+        "reports": 3
+      },
+      "120-240 days": {
+        "pct_gap_median": 0.0,
+        "ratio_current": 1.0,
+        "ratio_prior": 1.0,
+        "reports": 15
+      },
+      "240-400 days": {
+        "pct_gap_median": -0.06,
+        "ratio_current": 0.983,
+        "ratio_prior": 0.983,
+        "reports": 22
+      },
+      "400-800 days": {
+        "pct_gap_median": 0.0,
+        "ratio_current": 0.985,
+        "ratio_prior": 1.0,
+        "reports": 52
+      },
+      "45-120 days": {
+        "pct_gap_median": 1.43,
+        "ratio_current": 1.013,
+        "ratio_prior": 1.0,
+        "reports": 11
+      },
+      "800-1300 days": {
+        "pct_gap_median": -0.57,
+        "ratio_current": 0.993,
+        "ratio_prior": 1.0,
+        "reports": 46
+      }
+    },
+    "Totals excluding rape": {
+      "0-45 days": {
+        "pct_gap_median": 0.66,
+        "ratio_current": 0.896,
+        "ratio_prior": 0.89,
+        "reports": 6
+      },
+      "120-240 days": {
+        "pct_gap_median": 3.79,
+        "ratio_current": 0.92,
+        "ratio_prior": 0.886,
+        "reports": 15
+      },
+      "240-400 days": {
+        "pct_gap_median": 2.14,
+        "ratio_current": 0.906,
+        "ratio_prior": 0.887,
+        "reports": 22
+      },
+      "400-800 days": {
+        "pct_gap_median": 3.74,
+        "ratio_current": 0.915,
+        "ratio_prior": 0.887,
+        "reports": 53
+      },
+      "45-120 days": {
+        "pct_gap_median": 1.78,
+        "ratio_current": 0.904,
+        "ratio_prior": 0.889,
+        "reports": 10
+      },
+      "800-1300 days": {
+        "pct_gap_median": 7.13,
+        "ratio_current": 0.93,
+        "ratio_prior": 0.875,
+        "reports": 46
+      }
+    }
+  },
+  "revision_pct_by_measure": {
+    "Aggravated Assault (domestic + non-domestic)": {
+      "median": 4.052,
+      "n": 98,
+      "p10": 1.163,
+      "p90": 7.188
+    },
+    "Auto Theft": {
+      "median": 3.556,
+      "n": 98,
+      "p10": 1.809,
+      "p90": 8.612
+    },
+    "Commercial Burglary": {
+      "median": 6.101,
+      "n": 98,
+      "p10": 0.675,
+      "p90": 9.313
+    },
+    "Homicide": {
+      "median": 0.0,
+      "n": 97,
+      "p10": 0.0,
+      "p90": 50.0
+    },
+    "Larceny From MV": {
+      "median": 3.726,
+      "n": 98,
+      "p10": 2.302,
+      "p90": 6.718
+    },
+    "Non-Domestic Aggravated Assault": {
+      "median": 5.189,
+      "n": 98,
+      "p10": 1.661,
+      "p90": 9.362
+    },
+    "Other Larceny": {
+      "median": 4.228,
+      "n": 98,
+      "p10": 2.27,
+      "p90": 9.425
+    },
+    "Residential Burglary": {
+      "median": 6.255,
+      "n": 98,
+      "p10": 3.673,
+      "p90": 12.002
+    },
+    "Robbery & Attempted": {
+      "median": 2.386,
+      "n": 98,
+      "p10": 0.0,
+      "p90": 5.466
+    },
+    "Totals": {
+      "median": 4.275,
+      "n": 98,
+      "p10": 2.172,
+      "p90": 8.653
+    },
+    "Totals excluding rape": {
+      "median": 4.18,
+      "n": 98,
+      "p10": 2.121,
+      "p90": 8.322
+    },
+    "Totals excluding rape and domestic aggravated assault": {
+      "median": 4.295,
+      "n": 98,
+      "p10": 2.271,
+      "p90": 8.744
+    }
+  },
+  "totals_direction_bpd_vs_open": {
+    "down->down": 27,
+    "down->flat": 22,
+    "down->up": 39,
+    "flat->flat": 5,
+    "flat->up": 34,
+    "up->up": 25
+  }
+}
