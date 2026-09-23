@@ -3,20 +3,19 @@
 # Public-safety core. These are the datasets the claim corpus targets, and the
 # ones whose semantics the limitations corpus documents.
 #
-# UNVERIFIED: these slugs are from search results and the portal's URL patterns,
-# not from a successful API call -- this environment's network policy blocks
-# data.boston.gov. Confirm each against
-#   https://data.boston.gov/api/3/action/package_list
-# before trusting the pull. Expect some to have moved or been renamed.
+# Verified 2026-09-22 against https://data.boston.gov/api/3/action/package_show.
+# Two slugs guessed from URL patterns were wrong and have been corrected
+# (firearm-recovery-counts, boston-neighborhoods). Slugs do move; if a pull
+# reports a missing dataset, search package_search before assuming it is gone.
 
 crime-incident-reports-august-2015-to-date-source-new-system
 crime-incident-reports-july-2012-august-2015-source-legacy-system
 shootings
-firearm-recovery-counts
+boston-police-department-firearm-recovery-counts
 boston-police-department-fio
 fire-incident-reporting
 
 # Supporting tables. population_acs comes from the Census API, not CKAN --
 # api.census.gov is a separate client (ingest/acs_population.py, not yet written).
-boston-neighborhoods
+bpda-neighborhood-boundaries
 police-districts

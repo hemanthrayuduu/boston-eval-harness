@@ -7,6 +7,8 @@ isolation still hold the line.
 
 from __future__ import annotations
 
+import sys
+
 import duckdb
 import pytest
 
@@ -67,6 +69,27 @@ def test_timeout_kills_runaway_query(db: str) -> None:
     assert not result.ok
     assert result.timed_out
     assert result.latency_ms < 10_000
+
+
+def test_engine_memory_limit_is_set_on_every_platform(db: str) -> None:
+    """The portable cap. On macOS it is the only one, so it must actually land."""
+    result = execute(
+        db, "SELECT current_setting('memory_limit')", max_memory_bytes=256 * 1024**2
+    )
+    assert result.ok
+    # 75% of 256 MiB, rendered by DuckDB.
+    assert result.rows[0][0] == "192.0 MiB"
+
+
+@pytest.mark.skipif(
+    sys.platform not in {"linux", "darwin"}, reason="rlimit behaviour is OS-specific"
+)
+def test_rlimit_is_reported_honestly(db: str) -> None:
+    """Linux honours RLIMIT_AS; macOS rejects it. The result says which happened
+    rather than silently claiming a hard cap that is not there."""
+    result = execute(db, "SELECT 1")
+    assert result.ok
+    assert result.rlimit_applied is (sys.platform == "linux")
 
 
 def test_syntax_error_is_classified_not_raised(db: str) -> None:

@@ -29,14 +29,17 @@ notice?**
 
 ## Status
 
-169 tests, all offline (no network, no API keys, no data snapshot required).
+251 tests, all offline (no network, no API keys, no data snapshot required).
+Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 
 - [x] Feasibility check on claim sourcing (ClaimBench §0)
 - [x] Harness core — `env/guard.py`, `env/sandbox.py`, `harness/config.py`
 - [x] Spec-curve ground-truth engine — `specs/`
 - [x] Trace schema + pure scoring — `harness/trace.py`, `harness/score.py`
+- [x] CKAN ingest + DuckDB build — `ingest/` (catalog verified live; not yet pulled)
+- [ ] First live snapshot pull + `specs/compute.py` DuckDB evaluator
+- [ ] Claim corpus — `claims/`
 - [ ] Agent loop and tool surface — `env/tools.py`, `env/loop.py`
-- [ ] Claim corpus + DuckDB evaluator (needs network)
 
 ### What the spec curve does
 

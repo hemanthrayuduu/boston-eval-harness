@@ -32,6 +32,9 @@ class ExecutionResult:
     error_class: str | None = None
     error: str | None = None
     latency_ms: float = 0.0
+    # Whether the hard RLIMIT_AS cap was in force. False on macOS, where only
+    # DuckDB's memory_limit applies, and when the worker never reported back.
+    rlimit_applied: bool = False
 
     @property
     def timed_out(self) -> bool:
@@ -103,6 +106,7 @@ def execute(
             error_class=payload.get("error_class", "sql_error"),
             error=payload.get("error"),
             latency_ms=latency_ms,
+            rlimit_applied=payload.get("rlimit_applied", False),
         )
 
     return ExecutionResult(
@@ -111,4 +115,5 @@ def execute(
         rows=payload["rows"],
         row_count=payload["row_count"],
         latency_ms=latency_ms,
+        rlimit_applied=payload.get("rlimit_applied", False),
     )
