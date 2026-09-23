@@ -186,6 +186,34 @@ OFFENSE_SET = Dimension(
     ),
 )
 
+# Every option counts distinct incidents. Counting *rows* is deliberately not an
+# option: before 2019 crime_incidents has one row per offense (about 13% more rows
+# than incidents; 31k incidents list several offenses), and from 2019 exactly one
+# row per incident. A row count therefore changes meaning at the break -- from
+# 2018 to 2019 rows fall 12% while incidents rise 0.5% -- which makes it an error
+# rather than a defensible choice. Including it would flip every multi-year claim
+# on an artifact; it belongs in the limitations corpus and among `misleading`
+# claims instead.
+MULTI_OFFENSE = Dimension(
+    key="multi_offense",
+    question="When one incident records several offenses, which does it count under?",
+    options=(
+        Option(
+            "any_offense",
+            "The incident counts under every offense it records -- the NIBRS convention. "
+            "Matches the pre-2019 data as published, but from 2019 BPD publishes one "
+            "offense per incident, so a category count can dip at the break.",
+        ),
+        Option(
+            "most_serious_offense",
+            "The incident counts only under its most serious offense -- the FBI UCR "
+            "Summary hierarchy rule. Same shape as the one-offense-per-incident data BPD "
+            "publishes from 2019 (which offense BPD keeps is undocumented). Identical to "
+            "any_offense for Part One totals; differs for single-category claims.",
+        ),
+    ),
+)
+
 MISSING_GEO = Dimension(
     key="missing_geo",
     question="What happens to records with no usable location?",
@@ -206,7 +234,7 @@ MISSING_GEO = Dimension(
 
 DIMENSIONS: dict[str, Dimension] = {
     dim.key: dim
-    for dim in (MEASURE, WINDOW, GEOGRAPHY, DENOMINATOR, OFFENSE_SET, MISSING_GEO)
+    for dim in (MEASURE, WINDOW, GEOGRAPHY, DENOMINATOR, OFFENSE_SET, MULTI_OFFENSE, MISSING_GEO)
 }
 
 

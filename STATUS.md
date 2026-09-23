@@ -41,7 +41,7 @@ this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
 | 1 | Snapshot table definitions | `ingest/tables.py` | Done. 11 tables from 20 resources; 33 resources listed as unused, each with a reason |
 | 1 | Snapshot verification | `ingest/verify_snapshot.py` (`python -m ingest.verify_snapshot`) | Done |
 | 1 | Offense-code lookup (UCR part + crime flag per (code, description)) | `ingest/offense_codes.py`, `ingest/offense_code_labels.csv` | Done. Derived table `offense_codes`, 308 pairs. **85 hand labels are drafts, not yet reviewed** (§4c) |
-| 2 | Dimensions with written justifications | `specs/dimensions.py` | Done (measure, window, geography, denominator, offense_set, missing_geo) |
+| 2 | Dimensions with written justifications | `specs/dimensions.py` | Done (measure, window, geography, denominator, offense_set, multi_offense, missing_geo) |
 | 2 | Per-claim spec space, capped at 48 | `specs/space.py` | Done |
 | 2 | Claim assertions (change / level / comparison / rank) | `specs/assertions.py` | Done |
 | 2 | Curve computation plus driver attribution | `specs/curve.py` | Done. Takes an `Evaluator` protocol |
@@ -175,6 +175,28 @@ Other checks:
 
 ---
 
+## 4d. Decision: counting grain across 2019 (2026-09-23)
+
+The facts:
+- **Before 2019, `crime_incidents` has one row per offense.** About 20% of rows sit in
+  multi-row incidents. 31,132 incidents list several distinct offense codes, and only 354 have
+  exact duplicate rows.
+- **From 2019, exactly one row per incident.**
+- **Rows overstate incidents** by about 13% overall and 3.7–4.6% for Part One before 2019.
+
+Decided:
+1. **The spec engine always counts distinct `INCIDENT_NUMBER`s, never rows.** Rows change
+   meaning at the break (2018→2019: rows −12%, incidents +0.5%), so counting rows is an error,
+   not a defensible choice. It's deliberately *not* a spec option: that would flip every
+   multi-year claim on an artifact, the straw-man failure `dimensions.py` warns about. Instead
+   it goes into `LIM-SCHEMA-BREAK-2019` and is a source of `misleading` claims.
+2. **New dimension `multi_offense`**: `any_offense` (NIBRS style) vs `most_serious_offense`
+   (UCR hierarchy rule). For Part One totals the two give identical counts (verified
+   2016–2018). They differ only for single-category claims spanning 2019. Which offense BPD
+   keeps after 2019 is undocumented.
+
+---
+
 ## 4c. Offense-code lookup (2026-09-23)
 
 `offense_codes` is a derived table built after the loads. It's keyed on the exact
@@ -277,7 +299,7 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] FIO harmonisation (RMS vs Mark43, contact vs person files), then load as tables
 - [x] `ingest/offense_codes.py`: UCR part and crime flag per (code, description), description variants normalized, originals kept (§4c)
 - [ ] **You: review the 85 draft labels** in `ingest/offense_code_labels.csv` and flip `reviewed` to `yes` as you go. Start with 1831/1832 (39k rows, moves the drug trend), then 530, 3305, and the `is_crime` overrides. Rebuild afterwards (`python -m ingest.build_db`)
-- [ ] Decide incident vs offense counting grain across the 2019 break (§4a #2). Possibly a new `count_unit` dimension in `specs/dimensions.py`
+- [x] Decide incident vs offense counting grain across the 2019 break (§4d): distinct incidents always; new `multi_offense` dimension
 - [ ] `ingest/acs_population.py` (Census API, tract level, area-weighted to neighborhood and district). Decide first whether the CKAN population estimates (§4) are enough for denominator #2.
 - [ ] `corpus/limitations/*.md`: 10–14 docs with stable `LIM-*` IDs
 - [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries (7 seeded in §4a)
@@ -287,7 +309,7 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] **DoD:** 5 BPD claims hand-verified against the snapshot; at least 150 candidates
 
 ### Phase 2 finish: the real evaluator
-- [ ] `specs/compute.py`: `(claim, spec) -> float | None` as parameterized SQL over DuckDB, going through `env/sandbox`. Cached.
+- [ ] `specs/compute.py`: `(claim, spec) -> float | None` as parameterized SQL over DuckDB, going through `env/sandbox`. Cached. Count `DISTINCT INCIDENT_NUMBER` (§4d), join `offense_codes` for `offense_set`, honor `multi_offense`
 - [ ] CLI: `python -m specs.curve --corpus … --out specs/curves.jsonl` and `python -m specs.labels`
 - [ ] **DoD:** every corpus claim has a curve. Report the headline share of `underdetermined` claims.
 
@@ -330,7 +352,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-22 | `5fb3510` | Cleanup: portable sandbox memory cap (B1), wheel packages (B2), catalog slugs (B3), README (B4). 251 tests |
 | 2026-09-23 | `2f14e40` | First live pull: XLSX parsing, empty-datastore fallback, skip list for alternate renderings. Manifest committed, 7 data findings. 260 tests |
 | 2026-09-23 | `cde858c` | Snapshot build: `build_db`/`verify_snapshot` CLIs, `ingest/tables.py` (11 tables), coverage check, GeoJSON geometry kept. Sealed manifest. 274 tests |
-| 2026-09-23 | (this commit) | Offense-code lookup: `offense_codes` derived table, 85 draft hand labels, derived-table support in `build_db`, failed builds leave no file. 300 tests |
+| 2026-09-23 | `3ec16cb` | Offense-code lookup: `offense_codes` derived table, 85 draft hand labels, derived-table support in `build_db`, failed builds leave no file. 300 tests |
+| 2026-09-23 | (this commit) | Counting-grain decision: distinct incidents always, `multi_offense` dimension added (§4d). 300 tests |
 
 ---
 
