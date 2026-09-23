@@ -9,3 +9,6 @@ data/raw/
 data/*.duckdb
 runs/
 .env
+
+# Scraped source PDFs: re-fetchable, and verifiable against the hashes in posts.jsonl.
+claims/sources/*/pdf/

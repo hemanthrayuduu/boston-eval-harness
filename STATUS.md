@@ -14,9 +14,9 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **319, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **329, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
-| Claims | None. No `claims/` directory. |
+| Claims | BPD archive scraped: 639 posts indexed in `claims/sources/bpd/posts.jsonl`, 420 PDFs (32 MB, gitignored). Not yet extracted into claims. See §4g. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
 | CI | None. No `.github/workflows/`. |
 
@@ -175,6 +175,45 @@ Other checks:
 10. **Offense codes are zero-padded in some years' files and not others** (353k rows). All of
     them cast cleanly to `INTEGER`, which is the join key to `offense_codes_source`.
 11. **Boundary geometry is only in the GeoJSON.** See the correction above.
+
+---
+
+## 4g. BPD crime-stats archive (2026-09-23)
+
+`python -m claims.bpd_scrape --out claims/sources/bpd` reads the WordPress REST API
+(`/wp-json/wp/v2/posts?categories=21`), one request per second, with an identifying
+User-Agent. `robots.txt` allows it. Every post is recorded in `posts.jsonl` (committed): id,
+publication and modification dates, link, title, rendered content, and each linked PDF's URL,
+file, size and SHA-256. The PDFs are gitignored and can be re-fetched and verified against the
+hashes. Re-runs skip PDFs already on disk unless the post's `modified_gmt` changed.
+
+What the archive actually is:
+- **639 posts, but not continuous.**
+  - **2005–2011:** 480 "UPDATED CRIME DATA" posts. Their content was lost in a site migration
+    and links nothing.
+  - **2012–2022: nothing.**
+  - **2023–2026:** 159 weekly "Crime Statistics: January 1 – {date} vs. {prior year}" posts.
+  - The roadmap's feasibility check assumed a continuous multi-year archive. **Only the 159
+    posts from 2023 on are usable**, and they all fall inside the snapshot's coverage.
+- **The numbers are in linked PDFs, not the posts:** 2–3 per post (Part One crime by offense
+  and district; shooting victims; firearm arrests/recoveries "FARR"). They're rendered by SQL
+  Server Reporting Services with real text and cell borders, and `pdfplumber.extract_tables()`
+  recovers them as clean rows (prototyped). Filenames are inconsistent, so the report type
+  must come from the PDF's own title.
+- **12 PDFs are lost:** four posts from June–July 2023 linked `bpdnews.squarespace.com`, which
+  now returns 404. The Internet Archive has only the redirect, not the file, and the Squarespace
+  CDN copy is gone too. Recorded in `posts.jsonl` with the error. Unrecoverable.
+- **420 PDFs downloaded** (2023: 72 of 84, 2024: 137, 2025: 139, 2026: 72).
+
+Findings from the prototype parse (2026-09-20 report):
+23. **BPD's official Part One includes rape** (128 → 108 year-to-date). The open data has no
+    rape rows (finding 18), so open-data Part One can never match BPD's published totals.
+24. **BPD counts homicides by the date they were ruled a homicide**, not when they occurred.
+    Per the footnote, the 2025 year-to-date total includes 3 incidents from prior years. That's
+    another definitional choice the open data doesn't make.
+25. **BPD's reports contain arithmetic errors.** In the Part One totals, the N/D row goes
+    86 → 59 and is labeled "0%" (should be −31%). In the shootings PDF, total 2026 victims are
+    95 in the first table and 94 in the second, in the same document.
 
 ---
 
@@ -383,7 +422,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] Add the city population datasets and the tract-approximated neighborhood boundaries to `ingest/catalog.txt`. The historical data is a ZIP (unsupported format), so it needs a parser or a manual extract
 - [x] `corpus/limitations/*.md`: 15 docs with stable `LIM-*` IDs, plus a validating loader (§4f)
 - [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries. 22 are already recorded in §4a, §4c and §4f from my queries; this item is your own hands-on pass
-- [ ] `claims/sources/`: scrape the BPD weekly crime-stats archive with dates preserved
+- [x] `claims/sources/`: scrape the BPD weekly crime-stats archive with dates preserved (§4g). 159 usable posts (2023–2026), 420 PDFs
+- [ ] `claims/bpd_extract.py`: parse the PDFs into figures with provenance (post, PDF hash, page, table, cell), classify report type from content, recompute BPD's percentages and subtotals and flag mismatches
 - [ ] `claims/extract.py` and the `claims.jsonl` schema (measure, window, geography, direction, magnitude, source URL, pub date, retrieval date, paraphrase)
 - [ ] Hand-source about 40 claims from GBH, Globe, WBUR, Universal Hub, and council statements
 - [ ] **DoD:** 5 BPD claims hand-verified against the snapshot; at least 150 candidates
@@ -435,7 +475,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `3ec16cb` | Offense-code lookup: `offense_codes` derived table, 85 draft hand labels, derived-table support in `build_db`, failed builds leave no file. 300 tests |
 | 2026-09-23 | `ae8d93d` | Counting-grain decision: distinct incidents always, `multi_offense` dimension added (§4d). 300 tests |
 | 2026-09-23 | `38f56de` | Population denominators investigated (§4e): Census API needs a key (blocked); city estimates correct a census undercount, so they're a third option, not a substitute |
-| 2026-09-23 | (this commit) | Limitations corpus: 15 docs, validating loader, 6 new findings, 2 of my earlier claims corrected. 319 tests |
+| 2026-09-23 | `9514fd1` | Limitations corpus: 15 docs, validating loader, 6 new findings, 2 of my earlier claims corrected. 319 tests |
+| 2026-09-23 | (this commit) | BPD archive scraper: 639 posts indexed, 420 PDFs, 12 lost to link rot (§4g). 329 tests |
 
 ---
 
