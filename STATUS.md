@@ -14,7 +14,7 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **300, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **319, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | None. No `claims/` directory. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
@@ -40,6 +40,7 @@ this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
 | 1 | Parquet → DuckDB with measured cast loss and dual checksums | `ingest/build_db.py` (`python -m ingest.build_db`) | Done. Multi-resource tables, strptime formats, coverage check, seals the manifest |
 | 1 | Snapshot table definitions | `ingest/tables.py` | Done. 11 tables from 20 resources; 33 resources listed as unused, each with a reason |
 | 1 | Snapshot verification | `ingest/verify_snapshot.py` (`python -m ingest.verify_snapshot`) | Done |
+| 1 | Limitations corpus: 15 docs with stable `LIM-*` IDs, plus a validating loader | `corpus/limitations/`, `env/limitations.py` | Done (§4f) |
 | 1 | Offense-code lookup (UCR part + crime flag per (code, description)) | `ingest/offense_codes.py`, `ingest/offense_code_labels.csv` | Done. Derived table `offense_codes`, 308 pairs. **85 hand labels are drafts, not yet reviewed** (§4c) |
 | 2 | Dimensions with written justifications | `specs/dimensions.py` | Done (measure, window, geography, denominator, offense_set, multi_offense, missing_geo) |
 | 2 | Per-claim spec space, capped at 48 | `specs/space.py` | Done |
@@ -157,8 +158,10 @@ Other checks:
    crime incident, 997 carry the identical timestamp and 5 differ by 4–5h. The snapshot loads
    all of them as `TIMESTAMP` (no zone) in local time.
 4. **`SHOOTING` has three encodings:** `0`/`1`, `Y`, and NULL (NULL on 351k rows).
-5. **Bad or missing geo** (null, 0, -1, or out of range) on 2.5–7% of rows per year. District is
-   blank or `External` on under 2%.
+5. **Missing geo on 2.5–7.2% of rows per year** (5.1% overall). District is blank or `External`
+   on under 1%. **Correction:** I first wrote "null, 0, -1, or out of range". There are *no* 0 or
+   -1 placeholders (checked); unusable locations are NULL, and only 7 rows fall outside Boston's
+   latitude range.
 6. **All 9 yearly crime files share one 17-column schema.** Coverage runs from 2015-06-15 to
    2026-09-20.
 7. **FIO ships as paired contact and person files per year** (28 resources, with names changing
@@ -172,6 +175,51 @@ Other checks:
 10. **Offense codes are zero-padded in some years' files and not others** (353k rows). All of
     them cast cleanly to `INTEGER`, which is the join key to `offense_codes_source`.
 11. **Boundary geometry is only in the GeoJSON.** See the correction above.
+
+---
+
+## 4f. Limitations corpus (2026-09-23)
+
+`corpus/limitations/` has 15 docs, indexed in its `README.md`. `env/limitations.py` loads them
+and enforces the rules: the ID format and filename match, the front-matter keys, four sections in
+order, `applies_to` naming real snapshot tables, `dimensions` naming real spec dimensions, and no
+dangling `LIM-…` cross-references. A test checks that **every spec dimension is covered by at
+least one doc**, which `limitation_citation_f1` needs in order to derive required citations from
+a curve's driver.
+
+Every Evidence number was measured on the 2026-09-23 snapshot or comes from the city's own
+dataset descriptions (sources listed per doc). The docs describe mechanisms, not claim answers,
+so the oracle/anti-oracle ablation measures whether an agent can *use* a limitation.
+
+IDs: `LIM-REPORTS-VS-INCIDENCE`, `LIM-SCHEMA-BREAK-2019`, `LIM-OFFENSE-CODE-REUSE`,
+`LIM-UCR-PART-DEFINITION`, `LIM-EXCLUDED-OFFENSES`, `LIM-LEGACY-SCHEMA-BREAK`,
+`LIM-STATION-GEOCODE`, `LIM-MISSING-GEO`, `LIM-SHOOTINGS-VS-VICTIMS`, `LIM-PRELIMINARY-DATA`,
+`LIM-SMALL-N`, `LIM-FIO-POLICE-ACTIVITY`, `LIM-NO-CROSS-CITY`, `LIM-CENSUS-UNDERCOUNT`,
+`LIM-OFFENSE-DUPES`. The roadmap's `LIM-BLOCK-GEOCODE` is **not** written: I found no source
+saying how BPD geocodes, and the station finding below is what the data actually shows.
+
+New findings while writing them:
+17. **Reports taken at police stations are geocoded to the station.** In all 12 districts, the
+    most common coordinate is 19–71 m from that district's station (checked against the city's
+    `boston-police-stations-bpd-only` dataset). Those 12 points hold 111,203 rows, 12.3% of
+    geocoded rows, from 5.8% of A1's to 18.4% of E5's. This inflates any neighborhood or tract
+    containing a station.
+18. **Sexual offenses are absent from the crime data.** Zero rape, sexual-assault or
+    indecent-assault rows in any year, though the published code list has 26 rape codes. The
+    city says records under MGL ch.41 §98F are excluded. **Correction:** I first said the
+    legacy system had 816 sexual-offense rows, so they "vanish at the 2015 system change". That
+    was wrong: 814 of those are sex-offender *registrations*, and only 2 are "Rape and
+    Attempted". Both systems effectively exclude them.
+19. **Domestic-violence and restraining-order descriptions:** 477–533 a year in 2016–2018, none
+    in 2019, 230 in 2020, none in 2021–2025.
+20. **The crime table's `SHOOTING` flag changed meaning in 2019:** 170 flagged incidents (2018),
+    then 810 (2019). From 2019 it's carried by INVESTIGATE PROPERTY, BALLISTICS EVIDENCE/FOUND
+    and VANDALISM rows, so it tracks gunfire generally, not people struck. The `shootings`
+    table counts victims struck (e.g. 2024: 127 victims in 102 incidents).
+21. **The legacy and new systems overlap:** 182 of the 200 legacy incidents dated on or after
+    2015-06-15 are also in `crime_incidents`. Combining the tables double-counts them.
+22. **Homicide counts are tiny by district:** 57 of 61 district-years (2019–2025) are under 10,
+    with a median of 2.
 
 ---
 
@@ -333,8 +381,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] **BLOCKED on you: get a Census API key** (https://api.census.gov/data/key_signup.html) and put it in `.env` as `CENSUS_API_KEY=...` (`.env` is gitignored)
 - [ ] `ingest/acs_population.py` (Census API, tract level, area-weighted to neighborhood and district). Decided (§4e): the CKAN estimates are *not* enough for `acs_5yr`/`decennial`; they're a candidate third option `city_estimate`
 - [ ] Add the city population datasets and the tract-approximated neighborhood boundaries to `ingest/catalog.txt`. The historical data is a ZIP (unsupported format), so it needs a parser or a manual extract
-- [ ] `corpus/limitations/*.md`: 10–14 docs with stable `LIM-*` IDs
-- [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries (7 seeded in §4a)
+- [x] `corpus/limitations/*.md`: 15 docs with stable `LIM-*` IDs, plus a validating loader (§4f)
+- [ ] Manual exploration, 3+ hours. Write `notes/surprises.md` with 20 entries. 22 are already recorded in §4a, §4c and §4f from my queries; this item is your own hands-on pass
 - [ ] `claims/sources/`: scrape the BPD weekly crime-stats archive with dates preserved
 - [ ] `claims/extract.py` and the `claims.jsonl` schema (measure, window, geography, direction, magnitude, source URL, pub date, retrieval date, paraphrase)
 - [ ] Hand-source about 40 claims from GBH, Globe, WBUR, Universal Hub, and council statements
@@ -386,7 +434,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `cde858c` | Snapshot build: `build_db`/`verify_snapshot` CLIs, `ingest/tables.py` (11 tables), coverage check, GeoJSON geometry kept. Sealed manifest. 274 tests |
 | 2026-09-23 | `3ec16cb` | Offense-code lookup: `offense_codes` derived table, 85 draft hand labels, derived-table support in `build_db`, failed builds leave no file. 300 tests |
 | 2026-09-23 | `ae8d93d` | Counting-grain decision: distinct incidents always, `multi_offense` dimension added (§4d). 300 tests |
-| 2026-09-23 | (this commit) | Population denominators investigated (§4e): Census API needs a key (blocked); city estimates correct a census undercount, so they're a third option, not a substitute |
+| 2026-09-23 | `38f56de` | Population denominators investigated (§4e): Census API needs a key (blocked); city estimates correct a census undercount, so they're a third option, not a substitute |
+| 2026-09-23 | (this commit) | Limitations corpus: 15 docs, validating loader, 6 new findings, 2 of my earlier claims corrected. 319 tests |
 
 ---
 

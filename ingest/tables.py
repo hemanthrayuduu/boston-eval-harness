@@ -46,8 +46,9 @@ SNAPSHOT_TABLES: tuple[TableSpec, ...] = (
             "YEAR": "INTEGER",
             "MONTH": "INTEGER",
             "HOUR": "INTEGER",
-            # 0 and -1 are placeholder coordinates, not casting failures; they
-            # survive as numbers and are the spec engine's missing_geo problem.
+            # Missing locations are NULL (48,811 rows); there are no 0 or -1
+            # placeholders. The most common points are police stations -- see
+            # corpus/limitations/LIM-STATION-GEOCODE.md.
             "Lat": "DOUBLE",
             "Long": "DOUBLE",
         },
