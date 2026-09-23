@@ -14,10 +14,10 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **418, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **450, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | **Corpus v0.2.0: 151 claims.** 108 from BPD's weekly reports (`claims/corpus/bpd.jsonl`, selected from 29,661 candidates) and 43 hand-sourced from 11 news and official pages (`claims/hand_sourced.toml` → `claims/corpus/hand.jsonl`). See §4g–4i and `claims/CHANGELOG.md`. |
-| LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
+| LLM calls | None yet. The agent environment and loop are built and run end to end with a scripted model (§4l). A real model needs your choice: an Ollama model to pull, or an API key. |
 | CI | None. No `.github/workflows/`. |
 
 **In one line:** the parts that need no data and no LLM are built and tested: guard, sandbox, run
@@ -51,7 +51,7 @@ this Mac**, which unblocks Phase 1 (verified 2026-09-22, see §4).
 | 2 | Curves and labels for the whole corpus | `specs/run.py` (`python -m specs.run`) → `specs/curves.jsonl`, `specs/summary.json` | Done (§4j). **Labels are v0 and provisional** |
 | 4 | Allowlist SQL guard | `env/guard.py` | Done, with malicious-query suite |
 | 4 | Subprocess sandbox (timeout, DuckDB `memory_limit`, plus `RLIMIT_AS` where the OS allows) | `env/sandbox.py`, `env/_worker.py` | Done. Portable since B1 fix |
-| 4 | Tools, agent loop | `env/tools.py`, `env/loop.py` | **Missing** |
+| 4 | Tools, agent loop, model adapters | `env/tools.py`, `env/loop.py`, `env/models.py` | Done (§4l). Scripted and Ollama adapters; hosted providers come with the runner |
 | 5 | Config hash vs run ID, dated model IDs | `harness/config.py` | Done |
 | 5 | Typed trajectory JSONL, resumable writer | `harness/trace.py` | Done |
 | 5 | Pure scorer, 9 metrics incl. over-abstention pairing | `harness/score.py` | Done (`SCORER_VERSION = 1.0.0`) |
@@ -179,6 +179,57 @@ Other checks:
 
 ---
 
+## 4l. Agent environment, Phase 4 (2026-09-23)
+
+- **`env/tools.py` has five typed tools:**
+  - `list_tables`
+  - `describe_table` (columns, types, share null, examples)
+  - `query` (guard, then row limit, then the sandbox subprocess)
+  - `read_limitation_doc` (a document, or the index when given no ID)
+  - `submit_verdict` (validated verdict label and limitation IDs)
+
+  Arguments are Pydantic models, and their JSON Schemas become the tool definitions. **Every
+  failure comes back as data** (`guard:*`, `timeout`, `bad_arguments`, `bad_verdict`,
+  `unknown_limitation`, and so on), so an agent can recover and the trace shows it. The roadmap's
+  `compute` and `search_schema` tools are deferred; `search_schema` belongs to the Phase 8
+  retrieval ablation.
+- **`env/loop.py` runs one claim per episode** and outputs `harness.trace.Trajectory`:
+  - every model turn becomes an `LLMCall` with a prompt hash
+  - every tool call becomes a `ToolCall` with its arguments, result summary, error class and
+    latency
+  - a turn without a tool call gets a nudge and counts against the budget
+  - when the budget runs out, there's one forced submit-only turn; after that the episode ends
+    `step_budget_exhausted`
+  - there's a wall-clock timeout, and model failures are recorded as `fatal_error`, not raised
+
+  Scaffolds are pluggable: `ReactScaffold`, and `SingleShotScaffold` (no data access, the floor
+  for the tool ablation).
+- **The prompt is deliberately neutral.** An early draft told the agent to "count distinct
+  incidents"; that was removed because it gives away a documented limitation. A test now checks
+  that the opening prompt mentions no counting rule or known pitfall.
+- **`env/models.py`:** `ScriptedModel` for tests and demos, and `OllamaModel` (`/api/chat` with
+  tool calling, injectable HTTP).
+- **DoD, end to end.** A scripted analyst ran the Herald "116 vs 120 shootings" claim through the
+  real tools, guard, sandbox and snapshot in 6 steps (each query about 160 ms). The trajectory
+  was written to `trajectories.jsonl`, replayed byte-identical, and scored by the pure scorer
+  against the claim's curve-derived ground truth: verdict accuracy 1.0, spec-sensitivity recall
+  1.0, overclaim rate 0. The runaway-query and malicious-query tests pass through the tool layer
+  too.
+- **No real model has run yet.** No API keys are set. Ollama is installed and its server is up,
+  but it has no models pulled.
+
+Two scoring issues the end-to-end run exposed:
+1. **`value_in_range` has no tolerance.** The agent reported −3.4 against a curve range starting
+   at −3.3898 and scored 0. This is the roadmap review's "comparison contract" gap. It needs a
+   stated tolerance, and fits the tolerance decision in §4j.
+2. **Deriving required citations as "every doc covering the driving dimension" is too coarse.**
+   The Herald claim's driver is `measure`, which also pulls in `LIM-SCHEMA-BREAK-2019` (listed
+   for the crime table's `SHOOTING` flag, irrelevant to the shootings table). Citation F1 came out
+   0.67 for a correct citation. Required citations should also be filtered by the tables the
+   claim's computation touches.
+
+---
+
 ## 4k. Reproducibility audit, Phase 3 (2026-09-23)
 
 `python -m experiments.reproducibility_audit` runs in about 7 seconds with no model. It compares
@@ -251,9 +302,12 @@ The 32 unverifiable claims:
 
 **Underdetermined: 6 of 119 computable claims (5%).** Drivers: `offense_mapping` 3, `measure`
 2, `missing_geo` 1. The two `measure`-driven ones are the purest cases:
-- The Herald's "116 vs 120 shootings" holds counted as incidents (−3.4%) and fails counted as
-  victims (+2.1%).
-- The Globe's "64 vs 67" does the reverse.
+- The Herald's "116 vs 120 shootings" holds counted as **victims** (−3.4%) and fails counted as
+  incidents (+2.1%).
+- The Globe's "64 vs 67" holds as **incidents** (−3.1%) and fails as victims (−12.2%).
+- **Correction:** I first wrote these the other way round, in this section and in the commit
+  messages for `9ceb842` and `786a0d3`. The labels and drivers were right; which measure holds
+  was swapped. The two outlets were counting different things under the same word.
 
 **What the 46 contradictions are.** They're mostly **gaps between official figures and the
 open data**, not spec sensitivity:
@@ -697,8 +751,12 @@ Work top-down. Tick boxes and move items to §6 as they land.
 
 ### Phase 4–5: agent and runner
 - [ ] Add `litellm` dependency; `.env` via `pydantic-settings`; a hello-world call per provider, plus Ollama
-- [ ] `env/tools.py`: list_tables, describe_table, query, compute, search_schema, read_limitation_doc, submit_verdict
-- [ ] `env/loop.py`: step budget, forced submit, pluggable scaffold
+- [x] `env/tools.py`: list_tables, describe_table, query, read_limitation_doc, submit_verdict; errors as data (§4l). `compute` and `search_schema` deferred
+- [x] `env/loop.py` plus `env/models.py`: step budget, forced submit, nudges, timeout, pluggable scaffold (ReAct, single-shot); scripted and Ollama adapters (§4l)
+- [x] **Phase 4 DoD:** malicious and runaway queries contained at the tool layer; one claim end to end (scripted agent on the real snapshot, traced, replayed, scored)
+- [ ] **You: choose a model for the first real run.** Either pull a small tool-calling model into Ollama (a few GB), or put an API key in `.env`
+- [ ] Scorer fixes from §4l: a `value_in_range` tolerance; required citations filtered by the tables a claim touches (bumps `SCORER_VERSION`)
+- [ ] `harness/ground_truth.py`: build `GroundTruth` for every claim from `specs/curves.jsonl`, replacing the demo's inline version
 - [ ] `harness/runner.py`: async, semaphore, backoff, k rollouts, resumable using `trace.completed_claim_ids`
 - [ ] `harness/cache.py`: keyed on (model, params, prompt) plus `replicate_index` under bypass
 - [ ] **B7**: bound the DuckDB spill directory before running agents at scale
@@ -740,7 +798,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `9b8b7df` | Claim corpus v0.1.0: schema, 108 BPD claims from 29,661 candidates, 5 hand-verified; `ucr_part` shadowing bug fixed; extractor Grand Total fix. 365 tests |
 | 2026-09-23 | `562ba63` | Corpus v0.2.0: 43 hand-sourced claims from 11 verified pages (151 total), schema v2, `ChangeAssertion.bound`. 384 tests |
 | 2026-09-23 | `9ceb842` | `specs/compute.py` plus `specs/run.py`: curves and v0 labels for all 151 claims; `offense_mapping` dimension; 5% underdetermined (provisional). 413 tests |
-| 2026-09-23 | (this commit) | Phase 3 reproducibility audit: 305 reports vs open data, domestic-assault exclusion found, 4.3% revisions, 3–4 point favorable bias in weekly comparisons. 418 tests |
+| 2026-09-23 | `786a0d3` | Phase 3 reproducibility audit: 305 reports vs open data, domestic-assault exclusion found, 4.3% revisions, 3–4 point favorable bias in weekly comparisons. 418 tests |
+| 2026-09-23 | (this commit) | Phase 4 agent environment: tools, loop, scaffolds, scripted and Ollama models; scripted end-to-end run scored; corrected the Herald/Globe measure swap. 450 tests |
 
 ---
 

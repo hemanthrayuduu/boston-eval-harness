@@ -29,7 +29,7 @@ notice?**
 
 ## Status
 
-418 tests, all offline (no network, no API keys, no data snapshot required).
+450 tests, all offline (no network, no API keys, no data snapshot required).
 Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 
 - [x] Feasibility check on claim sourcing (ClaimBench §0)
@@ -45,7 +45,7 @@ Detailed progress and the ordered task list live in [`STATUS.md`](STATUS.md).
 - [x] Reproducibility audit — do BPD's published figures reproduce from the open data? ([`experiments/REPRODUCIBILITY.md`](experiments/REPRODUCIBILITY.md))
 - [x] BPD weekly reports scraped and extracted — 305 reports, 113k figures (`claims/`)
 - [x] Claim corpus v0.2.0 — 151 claims: 108 from BPD reports, 43 hand-sourced from news and official statements (`claims/corpus/`)
-- [ ] Agent loop and tool surface — `env/tools.py`, `env/loop.py`
+- [x] Agent loop and tool surface — `env/tools.py`, `env/loop.py`, `env/models.py` (end to end with a scripted model; no real model run yet)
 
 ### What the spec curve does
 
