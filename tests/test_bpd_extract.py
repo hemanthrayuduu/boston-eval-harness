@@ -94,6 +94,20 @@ class TestPartOne:
         f = find(self.figures(), subject="Homicide", district="Grand Total", period="current")
         assert f.area is None and f.value == 3.0
 
+    def test_grand_total_in_the_area_column_is_still_the_grand_total(self) -> None:
+        """Some reports put the label in the Area column and leave District blank.
+        Missing that silently skipped the grand-total check for those reports."""
+        shifted = [list(row) for row in PART_ONE_PAGE_1]
+        shifted[-1] = ["Grand Total", "", "1", "3", "2.0", "127", "105", "136.0"]
+        figures = figures_from_tables([[shifted]], WINDOW)
+        f = find(figures, subject="Homicide", district="Grand Total", period="current")
+        assert f.area is None
+        assert not [x for x in figures if x.district == ""]
+
+        shifted[-1] = ["Grand Total", "", "1", "9", "2.0", "127", "105", "136.0"]
+        failures = check_figures(figures_from_tables([[shifted]], WINDOW))
+        assert ("grand_total", "Homicide current") in {(c.kind, c.detail) for c in failures}
+
     def test_totals_block_percent_and_average_belong_to_totals(self) -> None:
         figures = self.figures()
         pct = find(figures, subject="Totals", district="A01", period="pct_change")

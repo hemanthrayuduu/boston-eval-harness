@@ -11,7 +11,7 @@ sources = ["https://data.boston.gov/dataset/crime-incident-reports-august-2015-t
 
 ## What it is
 
-`UCR_PART` (and `offense_codes.ucr_part`, which follows it) uses BPD's own labels. They differ
+`UCR_PART` (and `offense_codes.ucr_category`, which follows it) uses BPD's own labels. They differ
 from the FBI's Uniform Crime Reporting definitions. "Part Three" is a BPD category that the FBI
 scheme does not have.
 
@@ -32,6 +32,6 @@ tens of thousands of hit-and-runs.
 
 ## What to do
 
-Say "Part One as labelled by BPD" when using `ucr_part`. For "is it a crime" questions, use
+Say "Part One as labelled by BPD" when using `ucr_category`. For "is it a crime" questions, use
 `offense_codes.is_crime`, which overrides the Part rule for specific codes, each with a rationale.
 Do not compare open-data Part One against FBI or other-city Part I figures.

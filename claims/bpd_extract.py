@@ -184,11 +184,13 @@ def _part_one_figures(table: list[list[str | None]], window: Window | None, page
     area: str | None = None
     for r in range(header_row + 1, len(table)):
         row = table[r]
-        if row[0]:
-            area = _clean(row[0]) or area
+        first = _clean(row[0])
         district = _clean(row[1]) if len(row) > 1 else ""
-        if district == "Grand Total":
-            area = None
+        # Some reports put "Grand Total" in the Area column with a blank District.
+        if "Grand Total" in (first, district):
+            district, area = "Grand Total", None
+        elif first:
+            area = first
         for j in range(2, len(row)):
             subject_raw = subjects[j] if j < len(subjects) else ""
             column = columns[j] or groups[j]

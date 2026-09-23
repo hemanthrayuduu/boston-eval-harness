@@ -20,8 +20,8 @@ as it appears in ``crime_incidents`` -- agents join with
 ``USING (OFFENSE_CODE, OFFENSE_DESCRIPTION)`` -- and every label says where it
 came from:
 
-* ``ucr_part`` is BPD's own label where the pair was observed with one
-  (``ucr_part_source = 'observed'``), otherwise a hand label (``'hand'``). BPD's
+* ``ucr_category`` is BPD's own label where the pair was observed with one
+  (``ucr_category_source = 'observed'``), otherwise a hand label (``'hand'``). BPD's
   labels are kept even where they differ from the FBI's -- ARSON is "Other"
   here, not Part One -- because ``part_one`` is defined as what BPD reports.
 * ``is_crime`` follows a rule (Part One and Two are crimes, Part Three is not)
@@ -229,8 +229,8 @@ def build_offense_codes(
             first_year INTEGER,
             last_year INTEGER,
             n_rows BIGINT,
-            ucr_part VARCHAR,
-            ucr_part_source VARCHAR,
+            ucr_category VARCHAR,
+            ucr_category_source VARCHAR,
             is_crime BOOLEAN,
             is_crime_source VARCHAR,
             rationale VARCHAR,
@@ -242,3 +242,15 @@ def build_offense_codes(
     conn.executemany(
         "INSERT INTO offense_codes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", records
     )
+
+    # DuckDB resolves column names case-insensitively, so a lookup column named
+    # like a crime_incidents column (ucr_part vs UCR_PART) makes a natural
+    # `JOIN ... USING (...) WHERE ucr_part = 'Part One'` silently read the
+    # crime table's column -- blank from 2019 -- and return zero. Only the two
+    # join keys may be shared.
+    lookup = {r[0].lower() for r in conn.execute("SELECT * FROM offense_codes LIMIT 0").description}
+    crime = {r[0].lower() for r in conn.execute("SELECT * FROM crime_incidents LIMIT 0").description}
+    clashes = sorted((lookup & crime) - {"offense_code", "offense_description"})
+    if clashes:
+        conn.execute("DROP TABLE offense_codes")
+        raise BuildError(f"offense_codes: columns {clashes} collide case-insensitively with crime_incidents")

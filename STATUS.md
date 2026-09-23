@@ -14,9 +14,9 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **351, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **365, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
-| Claims | BPD archive scraped (639 posts, 420 PDFs) and extracted: 153 Part One + 152 shootings reports, 113,556 figures with provenance, weekly from 2023-06-11 to 2026-09-20. Not yet turned into `claims.jsonl`. See §4g. |
+| Claims | **Corpus v0.1.0: 108 BPD claims** in `claims/corpus/bpd.jsonl`, selected by documented rules from 29,661 candidates, which come from 305 extracted weekly reports. No hand-sourced claims yet. See §4g–4h and `claims/CHANGELOG.md`. |
 | LLM calls | None yet. No agent loop, no runner, no LiteLLM dependency. |
 | CI | None. No `.github/workflows/`. |
 
@@ -175,6 +175,59 @@ Other checks:
 10. **Offense codes are zero-padded in some years' files and not others** (353k rows). All of
     them cast cleanly to `INTEGER`, which is the join key to `offense_codes_source`.
 11. **Boundary geometry is only in the GeoJSON.** See the correction above.
+
+---
+
+## 4h. Claim corpus v0.1.0 (2026-09-23)
+
+**Schema** (`claims/schema.py`, Pydantic):
+- **Source:** kind, organization, URL, published and retrieved dates, document plus SHA-256,
+  and a cell locator.
+- **Content:** a paraphrase (not a quote), measure, geography (BPD label plus open-data code,
+  e.g. `B02` → `B2`), and window (`ytd_vs_prior_ytd` or `calendar_year`).
+- **Assertion:** the spec engine's own `ChangeAssertion`.
+- **Audit fields:** the numbers as published, `source_checks_failed` (where BPD's document
+  contradicts itself), notes, `cluster_id` (same measure and place across reports, for the
+  clustered bootstrap), and `selection_rule`.
+- **No labels.** Those come from spec curves later.
+
+**Layout:** `claims/corpus/*.jsonl`, one file per source, loaded and validated together by
+`claims.corpus.load_corpus()` (unique IDs across files). This departs from the roadmap's single
+`claims.jsonl`, so that the BPD generator can't overwrite hand-sourced claims.
+
+**Generation** (`python -m claims.bpd_claims`):
+- Every claimable report row becomes a candidate: 29,661, written to `claims/candidates/`
+  (gitignored).
+- Weekly year-to-date reports are near-duplicates, so the corpus is *selected* by six
+  documented rules defined relative to the data. The table is in `claims/CHANGELOG.md`.
+- Where BPD printed a percent, the claim asserts the printed one, and a contradiction with its
+  own counts is flagged.
+
+**Bug found and fixed while hand-verifying:** `offense_codes.ucr_part` collided with
+`crime_incidents.UCR_PART`, because DuckDB column names are case-insensitive. A natural
+`JOIN … USING (…) WHERE ucr_part = 'Part One'` silently read the crime table's column (blank from
+2019) and returned 0.
+- Renamed to `ucr_category` and `ucr_category_source`.
+- The build now **refuses** any lookup column that shadows a `crime_incidents` column.
+- My earlier §4c numbers used an explicit `oc.` prefix and were unaffected.
+
+**Five claims hand-verified against the snapshot** (Phase 1 DoD). Each uses a single naive
+spec, not a curve:
+
+| Claim | BPD | Open data | Holds? |
+|---|---|---|---|
+| Shooting incidents, 2023 vs 2022 | 145 → 110 | 143 → 109 | yes |
+| Shooting victims, Jan 1–Sep 20, 2026 vs 2025 | 94 → 95 | 94 → 94 | yes (flat) |
+| Part One, district A1, Jan 1–Dec 28, 2025 vs 2024 | 2,258 → 2,174 (−3.7%) | 2,075 → 1,993 (−4.0%) | yes |
+| Homicides, 2023 vs 2022 | 40 → 37 (−7.5%) | 40 → 33 (−17.5%) | **no** |
+| Robbery, Jan 1–Sep 20, 2026 vs 2025 | 549 → 532 (−3.1%) | 468 → 473 (+1.1%) | **no: direction flips** |
+
+29. **Open-data counts run lower than BPD's** (Part One A1 about 8% lower, robbery about 12%
+    lower). Part of that is rape, which BPD includes and the open data lacks. Part is category
+    mapping, which is exactly what the spec engine will vary.
+30. **The homicide gap fits BPD's ruling-date counting** (finding 24).
+31. **The robbery claim changes direction** between BPD's report and a straightforward
+    open-data count: the first candidate spec-sensitive claim observed in the wild.
 
 ---
 
@@ -347,7 +400,7 @@ Decided:
 `offense_codes` is a derived table built after the loads. It's keyed on the exact
 `(OFFENSE_CODE, OFFENSE_DESCRIPTION)` pair from `crime_incidents`, so agents join with
 `USING (OFFENSE_CODE, OFFENSE_DESCRIPTION)`. It covers all 956,125 crime rows. Every label
-records where it came from (`ucr_part_source`, `is_crime_source` = observed/hand/rule), plus a
+records where it came from (`ucr_category_source`, `is_crime_source` = observed/hand/rule), plus a
 `rationale` and a `reviewed` flag for hand labels.
 
 - **UCR part:** BPD's own pre-2019 label where the pair was observed (223 + 21 pairs), otherwise
@@ -453,9 +506,10 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [x] `claims/sources/`: scrape the BPD weekly crime-stats archive with dates preserved (§4g). 159 usable posts (2023–2026), 420 PDFs
 - [x] `claims/bpd_extract.py`: parse the PDFs into figures with provenance, classify report type from content, recompute BPD's arithmetic and flag mismatches (§4g)
 - [ ] Optional: OCR the 2 image-only PDFs, and parse the firearm-arrest reports if firearm claims are wanted
-- [ ] `claims/extract.py` and the `claims.jsonl` schema (measure, window, geography, direction, magnitude, source URL, pub date, retrieval date, paraphrase)
+- [x] Claim schema and BPD claim generation: `claims/schema.py`, `claims/bpd_claims.py`, `claims/corpus/bpd.jsonl` (108 claims, v0.1.0, §4h)
+- [x] Hand-verify 5 BPD claims against the snapshot (§4h): 3 hold, 2 don't on a naive spec
 - [ ] Hand-source about 40 claims from GBH, Globe, WBUR, Universal Hub, and council statements
-- [ ] **DoD:** 5 BPD claims hand-verified against the snapshot; at least 150 candidates
+- [ ] **DoD:** ~~5 BPD claims hand-verified~~ (done); at least 150 claims in the corpus. Currently 108; the ~40 hand-sourced claims close the gap
 
 ### Phase 2 finish: the real evaluator
 - [ ] `specs/compute.py`: `(claim, spec) -> float | None` as parameterized SQL over DuckDB, going through `env/sandbox`. Cached. Count `DISTINCT INCIDENT_NUMBER` (§4d), join `offense_codes` for `offense_set`, honor `multi_offense`
@@ -506,7 +560,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `38f56de` | Population denominators investigated (§4e): Census API needs a key (blocked); city estimates correct a census undercount, so they're a third option, not a substitute |
 | 2026-09-23 | `9514fd1` | Limitations corpus: 15 docs, validating loader, 6 new findings, 2 of my earlier claims corrected. 319 tests |
 | 2026-09-23 | `552a1ad` | BPD archive scraper: 639 posts indexed, 420 PDFs, 12 lost to link rot (§4g). 329 tests |
-| 2026-09-23 | (this commit) | BPD figure extraction: 113,556 figures from 305 reports, 312 failed consistency checks in BPD's own reports. 351 tests |
+| 2026-09-23 | `2c0467d` | BPD figure extraction: 113,556 figures from 305 reports, 312 failed consistency checks in BPD's own reports. 351 tests |
+| 2026-09-23 | (this commit) | Claim corpus v0.1.0: schema, 108 BPD claims from 29,661 candidates, 5 hand-verified; `ucr_part` shadowing bug fixed; extractor Grand Total fix. 365 tests |
 
 ---
 

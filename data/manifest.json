@@ -1,7 +1,7 @@
 {
   "base_url": "https://data.boston.gov",
-  "content_sha256": "ff10397bc64a139904fc3be8969fd2ad547ca5bc412fff5cf5d1a901582202d5",
-  "duckdb_sha256": "1eaf5e3e1a5f4f760365ce450beb3b5e1a0ced9e62b76f47b499235067239ee5",
+  "content_sha256": "60ce05173757556d45bd6d819c634ac2a43a9f4d21a58afec33709f7e78127cb",
+  "duckdb_sha256": "c08b252e7218993f232801276fcc4cf3eb0ac7b9d2fbc2f1365a30fb4c49e222",
   "manifest_version": 2,
   "resources": [
     {

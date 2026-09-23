@@ -32,5 +32,5 @@ then be off by multiples, not percentages.
 ## What to do
 
 Classify offenses by the (`OFFENSE_CODE`, `OFFENSE_DESCRIPTION`) pair: join `offense_codes` with
-`USING (OFFENSE_CODE, OFFENSE_DESCRIPTION)`. Its `ucr_part_source` and `is_crime_source` columns
+`USING (OFFENSE_CODE, OFFENSE_DESCRIPTION)`. Its `ucr_category_source` and `is_crime_source` columns
 show which labels are BPD's own and which were assigned by hand, with a `rationale` for each.

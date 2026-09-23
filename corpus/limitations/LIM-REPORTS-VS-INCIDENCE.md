@@ -33,6 +33,6 @@ classification.
 
 ## What to do
 
-Filter through `offense_codes` (`is_crime`, or `ucr_part` for Part One); the `offense_set`
+Filter through `offense_codes` (`is_crime`, or `ucr_category` for Part One); the `offense_set`
 dimension is exactly this choice. Say "reported incidents", not "crimes committed". Treat
 victimization or risk language as unsupported by this table alone.

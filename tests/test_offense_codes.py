@@ -57,7 +57,7 @@ def reused_code_label() -> list:
 
 def lookup(conn) -> dict:
     rows = conn.execute(
-        "SELECT OFFENSE_CODE, OFFENSE_DESCRIPTION, ucr_part, ucr_part_source, is_crime, "
+        "SELECT OFFENSE_CODE, OFFENSE_DESCRIPTION, ucr_category, ucr_category_source, is_crime, "
         "is_crime_source, reviewed FROM offense_codes"
     ).fetchall()
     return {(r[0], r[1]): r[2:] for r in rows}
@@ -112,6 +112,18 @@ class TestLabelling:
             "SELECT published_names FROM offense_codes WHERE OFFENSE_DESCRIPTION = 'SICK ASSIST'"
         ).fetchone()[0]
         assert names == ["DRUGS - SICK ASSIST", "SICK ASSIST"]
+
+
+def test_lookup_columns_do_not_shadow_crime_columns(conn, tmp_path) -> None:
+    """A joined query filtering on the lookup's category must not silently read
+    crime_incidents.UCR_PART, which is blank from 2019. Found by hand-verifying a
+    district claim that came back as zero."""
+    build_offense_codes(conn, write_labels(tmp_path / "l.csv", reused_code_label()))
+    n = conn.execute(
+        "SELECT count(*) FROM crime_incidents JOIN offense_codes "
+        "USING (OFFENSE_CODE, OFFENSE_DESCRIPTION) WHERE ucr_category = 'Part One'"
+    ).fetchone()[0]
+    assert n == 3  # all three 613 rows, including the two from years with UCR_PART blank
 
 
 class TestRefusals:
