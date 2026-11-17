@@ -4,7 +4,7 @@ Where the project stands, and what to do next. This is the working checklist.
 `ROADMAP-CLAIMBENCH.md` is the design; this file tracks progress against it.
 Update it at the end of every work session.
 
-**Last updated:** 2026-09-23 · **Branch:** `claude/eval-harness-roadmap-review-yr1bxk` (not merged to `main`)
+**Last updated:** 2026-11-17 · **Branch:** `claude/eval-harness-roadmap-review-yr1bxk` (not merged to `main`)
 
 ---
 
@@ -14,11 +14,11 @@ Update it at the end of every work session.
 |---|---|
 | Plan in force | `ROADMAP-CLAIMBENCH.md` (the claim-verification benchmark). `roadmap.md` is the fallback. |
 | Code | ~2.9k LOC in 4 packages (`env/`, `harness/`, `specs/`, `ingest/`) plus ~2.5k LOC of tests |
-| Tests | **458, all passing on macOS** (2026-09-23). All offline. Linux sandbox path not re-run since B1 fix (see B1). |
+| Tests | **458, passing on Linux / py3.13 / DuckDB 2.0.0** (2026-11-17) and on macOS (2026-09-23). All offline. |
 | Data | **Snapshot built and sealed 2026-09-23.** Pull: 53 resources, 2,262,459 rows, 54 MB Parquet in `data/raw/`. Build: 12 tables (11 loaded + `offense_codes` derived), 1,906,360 rows, `data/boston.duckdb` (83 MB, 5s). Both gitignored. `data/manifest.json` is committed and sealed. See §4a and §4b. |
 | Claims | **Corpus v0.2.0: 151 claims.** 108 from BPD's weekly reports (`claims/corpus/bpd.jsonl`, selected from 29,661 candidates) and 43 hand-sourced from 11 news and official pages (`claims/hand_sourced.toml` → `claims/corpus/hand.jsonl`). See §4g–4i and `claims/CHANGELOG.md`. |
 | LLM calls | None yet. The agent environment and loop are built and run end to end with a scripted model (§4l). **Free hosted models work through the new OpenAI-compatible adapter; they need your free OpenRouter or Groq key in `.env`** (§4l). |
-| CI | None. No `.github/workflows/`. |
+| CI | **`.github/workflows/tests.yml`** (2026-11-17): offline suite on ubuntu+macos × py3.12+3.13, `uv sync --locked`, plus a `uv lock --check` job. Eval regression gates (pr_smoke replay, nightly, data_refresh) still to come. |
 
 **In one line:** the parts that need no data and no LLM are built and tested: guard, sandbox, run
 identity, spec-curve engine, trace schema, pure scorer, CKAN ingest, and DB build. Real data is now
@@ -74,10 +74,11 @@ B1–B4 fixed 2026-09-22, B5 fixed 2026-09-23. B6 still open. B7 is new.
   `RLIMIT_AS` as defense-in-depth on Linux. Record which cap was applied in `ExecutionResult`.
   *Done:* the worker always sets DuckDB `memory_limit` to 75% of the cap and tries `RLIMIT_AS`
   (it's skipped on macOS). `ExecutionResult.rlimit_applied` reports which happened, and
-  `OutOfMemoryException` now maps to `memory_exceeded`. There are 2 new tests. **Not yet re-run
-  on Linux:** Docker is installed but the daemon wasn't running. Run
-  `docker run --rm -v $PWD:/w -w /w python:3.12 sh -c "pip install -q -e '.[dev]' && pytest"`
-  once to confirm.
+  `OutOfMemoryException` now maps to `memory_exceeded`. There are 2 new tests.
+  *Linux re-run 2026-11-17: it failed.* `RLIMIT_AS` kills the worker with SIGSEGV on connect
+  under DuckDB 2.x at 256MB/512MB/1GB (2GB is the first survivable value), because DuckDB
+  reserves a large virtual arena and `RLIMIT_AS` bounds virtual address space. Now
+  `RLIMIT_DATA`, which bounds the data segment and behaves. See B8.
 - ~~**B2. `pyproject.toml` only packages `env` and `harness`.** `specs/` and `ingest/` are left out
   of the wheel. Tests pass only because they run from the repo root. Add both to
   `[tool.hatch.build.targets.wheel] packages`.~~ **Fixed.** The wheel now builds with all 4 packages plus `catalog.txt`.
@@ -85,9 +86,15 @@ B1–B4 fixed 2026-09-22, B5 fixed 2026-09-23. B6 still open. B7 is new.
 - ~~**B4. README is stale.**~~ **Fixed.** It says "169 tests" and doesn't list ingest as done. It should say 249
   tests and add the ingest line.
 - ~~**B5. No `build_db` or `verify_snapshot` CLI.**~~ **Fixed.** Both exist (see §4b).
-- **B6. Toolchain.** `uv` isn't installed on this Mac, and the system `python3` is 3.9. The
-  project needs `>=3.12` (`/opt/homebrew/bin/python3.12` is present). Tests were run from a
-  throwaway venv: `python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'`.
+- ~~**B6. Toolchain.**~~ **Partly fixed.** `uv run pytest` is now the single entry point, and
+  `uv.lock` is committed (it was gitignored), so every machine and CI resolve identically. Still
+  install `uv` on the Mac to use it there.
+- ~~**B8. Unpinned deps let DuckDB 2.0 in silently.**~~ **Fixed 2026-11-17.** A fresh install
+  resolved py3.13 + DuckDB 2.0.0 and broke 4 tests that were green on macOS in September: the
+  sandbox segfault above, and byte-identity of the built database (2.0 writes a random
+  per-database header). The byte-identity assertions are gone rather than inverted — that
+  behaviour has moved twice now, and only `content_sha256` is depended on. `duckdb` is
+  upper-bounded at `<3`, `uv.lock` is committed, `experiments` added to the wheel packages.
 - **B7. DuckDB spills to disk under `memory_limit`.** A group-by past the limit completed by
   spilling instead of raising. Spilling is fine, but on a file-backed snapshot the spill goes to
   `<db>.tmp` next to it, with no size bound. Before running agents at scale, set
@@ -754,11 +761,12 @@ Work top-down. Tick boxes and move items to §6 as they land.
 
 ### Now: unblock and clean up (about half a day)
 - [x] **B1**: make the sandbox portable (DuckDB `memory_limit` plus a guarded rlimit). 251/251 on macOS.
-- [ ] Re-run the suite on Linux (Docker one-liner in B1)
+- [x] Re-run the suite on Linux — found and fixed the `RLIMIT_AS`/DuckDB 2.0 segfault (B8)
 - [x] **B2**: add `specs` and `ingest` to wheel packages
 - [x] **B3**: fix the two catalog slugs. Remove the UNVERIFIED banner from `catalog.txt`.
 - [x] **B4**: update the README test count and status list
-- [ ] **B6**: install `uv`, then `uv sync --extra dev`. Commit to `uv run pytest` as the single entry point.
+- [x] **B6**: `uv run pytest` is the single entry point; `uv.lock` committed. (Still install `uv` on the Mac.)
+- [x] **CI**: `.github/workflows/tests.yml` — ubuntu+macos × py3.12+3.13, locked installs, lockfile freshness job
 
 ### Phase 1: data and claims (the risky track, so start it first)
 - [x] First live pull: `python -m ingest.pull` into `data/raw/` (§4a)
@@ -815,7 +823,7 @@ Work top-down. Tick boxes and move items to §6 as they land.
 - [ ] Phase 7: corpus to 250, hand labels, second labeler on 40, MDE
 - [ ] Phase 8: experiment battery (model compare, tool ablation incl. oracle and anti-oracle, scaffolds, step budget, prompt ceiling, memorization)
 - [ ] Phase 9: clustered bootstrap, variance, `sql_faithfulness` judge validation (AC1 + κ)
-- [ ] Phase 10: GitHub Actions (pr_smoke replay, nightly, data_refresh), `analysis/drift.py`, `diff_runs.py`, suppression-boundary test
+- [ ] Phase 10: eval regression gates (pr_smoke replay, nightly, data_refresh) — the test CI landed 2026-11-17; `analysis/drift.py`, `diff_runs.py`, suppression-boundary test
 - [ ] Phase 11: leaderboard static site, claim explorer, datasheet, one-command reproduction
 - [ ] Phase 12: run the test split once, writeup, Inspect AI port
 
@@ -837,6 +845,8 @@ Work top-down. Tick boxes and move items to §6 as they land.
 | 2026-09-23 | `cde858c` | Snapshot build: `build_db`/`verify_snapshot` CLIs, `ingest/tables.py` (11 tables), coverage check, GeoJSON geometry kept. Sealed manifest. 274 tests |
 | 2026-09-23 | `3ec16cb` | Offense-code lookup: `offense_codes` derived table, 85 draft hand labels, derived-table support in `build_db`, failed builds leave no file. 300 tests |
 | 2026-09-23 | `ae8d93d` | Counting-grain decision: distinct incidents always, `multi_offense` dimension added (§4d). 300 tests |
+| 2026-11-17 | `d7350c8` | CI: offline suite on Linux+macOS × py3.12+3.13, locked installs, lockfile-freshness job |
+| 2026-11-17 | `6adf19c` | Linux re-run found 4 failures: sandbox SIGSEGV under `RLIMIT_AS`+DuckDB 2.0 (now `RLIMIT_DATA`), and byte-identity assertions dropped. `uv.lock` committed, `duckdb<3`. 458 tests on Linux |
 | 2026-09-23 | `38f56de` | Population denominators investigated (§4e): Census API needs a key (blocked); city estimates correct a census undercount, so they're a third option, not a substitute |
 | 2026-09-23 | `9514fd1` | Limitations corpus: 15 docs, validating loader, 6 new findings, 2 of my earlier claims corrected. 319 tests |
 | 2026-09-23 | `552a1ad` | BPD archive scraper: 639 posts indexed, 420 PDFs, 12 lost to link rot (§4g). 329 tests |
