@@ -5,12 +5,21 @@ on memory without taking the harness down with it. Reads a JSON request on stdin
 writes a JSON response on stdout. Never raises to the caller -- failures come back
 as a structured ``error_class``.
 
-Memory is capped twice. DuckDB's ``memory_limit`` is portable and fails cleanly with
-``OutOfMemoryException``, but bounds only the buffer manager. ``RLIMIT_AS`` bounds
-every allocation, but only Linux honours it: macOS rejects any finite value with
-``ValueError: current limit exceeds maximum limit``. So the engine limit is the
-primary cap everywhere, set below the rlimit so it trips first, and the rlimit is
-defense-in-depth where the OS allows it. The response reports which applied.
+Memory is capped twice. DuckDB's ``memory_limit`` is portable, bounds the buffer
+manager, and fails cleanly with ``OutOfMemoryException``. That is the primary cap
+everywhere. ``RLIMIT_DATA`` bounds the heap on top of it, as defence against
+allocations the engine does not track, and only Linux honours it: macOS rejects
+any finite value with ``ValueError: current limit exceeds maximum limit``. The
+response reports which applied.
+
+**Not ``RLIMIT_AS``.** It bounds total *virtual* address space, and DuckDB 2.x
+reserves a large virtual arena at connect time regardless of how much it will
+actually use. Under ``RLIMIT_AS`` at 256MB, 512MB or 1GB the process dies with
+SIGSEGV before running a query (verified on DuckDB 2.0.0 / glibc 2.39); 2GB is
+the first value that survives. That trades a clean, catchable
+``OutOfMemoryException`` for a signal the worker cannot report, which is strictly
+worse than no rlimit at all. ``RLIMIT_DATA`` bounds the data segment instead and
+behaves.
 """
 
 from __future__ import annotations
@@ -27,11 +36,15 @@ _ENGINE_SHARE = 0.75
 
 
 def _apply_memory_cap(max_bytes: int) -> bool:
-    """Set a hard address-space cap. Returns whether the OS accepted it."""
+    """Cap the heap. Returns whether the OS accepted it.
+
+    ``RLIMIT_DATA``, not ``RLIMIT_AS`` -- see the module docstring. Linux honours
+    this; macOS raises and we fall back to DuckDB's own limit alone.
+    """
     try:
-        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+        soft, hard = resource.getrlimit(resource.RLIMIT_DATA)
         limit = max_bytes if hard == resource.RLIM_INFINITY else min(max_bytes, hard)
-        resource.setrlimit(resource.RLIMIT_AS, (limit, hard))
+        resource.setrlimit(resource.RLIMIT_DATA, (limit, hard))
     except (ValueError, OSError):
         return False
     return True

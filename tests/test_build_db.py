@@ -174,14 +174,20 @@ class TestCastLoss:
 
 
 class TestChecksums:
-    def test_rebuilding_the_same_path_is_byte_identical(self, raw, tmp_path) -> None:
-        """True for small tables like these. Not for the real snapshot, where
-        parallel loading moves the bytes between builds -- see the build_db
-        module docstring. The content digest is what survives a rebuild."""
+    def test_content_hash_survives_a_rebuild(self, raw, tmp_path) -> None:
+        """The property the project actually relies on, and the only one that is
+        stable across engine versions.
+
+        Byte-identity of the file is not asserted anywhere, deliberately. It has
+        moved twice under us: DuckDB 1.x wrote identical bytes for identical
+        content at a given path, 2.0 writes a random per-database header (46
+        bytes differing from offset 0), and parallel loading moves bytes again at
+        real snapshot size. The content digest is immune to all of it.
+        """
         database = tmp_path / "boston.duckdb"
         first = build_database([crime_spec()], raw, database)
         second = build_database([crime_spec()], raw, database)
-        assert first.duckdb_sha256 == second.duckdb_sha256
+        assert first.content_sha256 == second.content_sha256
 
     def test_file_hash_moves_when_only_the_filename_changes(self, raw, tmp_path) -> None:
         """Why the file hash cannot answer "did the data change?".
@@ -244,14 +250,17 @@ class TestSealing:
         )
         manifest.verify(database)
 
-        # An honest rebuild of identical data at the same path still verifies
-        # at this size (not at real snapshot size -- rebuilds re-seal).
-        build_database([crime_spec()], raw, database)
-        manifest.verify(database)
-
-        # A modified file must not.
+        # A rebuild must be re-sealed: the file hash is per-build, so a stale
+        # manifest correctly refuses the new file even though the data is
+        # identical. That is the run gate working, not a false alarm -- results
+        # were computed against the bytes that were sealed.
         from ingest.manifest import SnapshotMismatch
 
+        rebuilt = build_database([crime_spec()], raw, database)
+        assert rebuilt.content_sha256 == report.content_sha256
+        seal_manifest(manifest, rebuilt).verify(database)
+
+        # A modified file must not verify.
         database.write_bytes(database.read_bytes() + b"tampered")
         with pytest.raises(SnapshotMismatch, match="checksum mismatch"):
             manifest.verify(database)

@@ -9,14 +9,17 @@ not a type conversion, it is data loss, and the build stops rather than handing
 you a table that looks clean and is not.
 
 **A checksum that promises more than it delivers.** A DuckDB file hash is a hash
-of *bytes*, and bytes move for reasons the data did not. Verified: building the
-same content to a different filename changes three bytes, because the filename is
-embedded in the file. At real size, even rebuilding to the *same* path changes
-the file -- the 2026-09-23 snapshot (1.9M rows) hashed differently on two
-consecutive builds while its content digest held, presumably because large
-tables load in parallel. Small tables do rebuild byte-identically. A DuckDB
-storage-format change across versions would move the bytes too.
+of *bytes*, and bytes move for reasons the data did not. Verified, repeatedly and
+in different directions: building the same content to a different filename
+changes three bytes, because the filename is embedded. At real size, rebuilding
+to the *same* path changes the file -- the 2026-09-23 snapshot (1.9M rows) hashed
+differently on two consecutive builds while its content digest held, presumably
+because large tables load in parallel. And the engine itself moves the target:
+DuckDB 1.x wrote byte-identical files for small tables rebuilt at one path, while
+2.0 writes a random per-database header, so even that no longer holds.
 
+The lesson is not which of those is true today. It is that file bytes are not a
+data-identity signal and no version-specific byte behaviour is worth depending on.
 So the file hash answers "is this the exact file the results were computed
 against?" -- identity, which is what the run gate needs. It cannot answer "did
 the data change?", because a rename or an engine upgrade would both say yes. The
