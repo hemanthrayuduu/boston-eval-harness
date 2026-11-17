@@ -1,0 +1,66 @@
+name: tests
+
+# The offline suite: no network, no API keys, no data snapshot. That is a design
+# property of the harness (run and score are split, so scoring is a pure function
+# of committed fixtures), and it is what makes this gate cheap enough to run on
+# every push.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Don't let one platform's failure hide the other's. The bug that prompted
+      # this workflow was Linux-only while macOS stayed green for two months.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install the locked environment
+        # --locked fails rather than silently re-resolving, so a stale lockfile
+        # is a build error instead of a difference nobody notices. An unpinned
+        # dependency is how DuckDB 2.0 arrived and segfaulted the sandbox.
+        run: uv sync --locked --extra dev --python ${{ matrix.python }}
+
+      - name: Record the resolved environment
+        # Printed so a failure report says which versions actually ran, rather
+        # than leaving it to be reconstructed later.
+        run: |
+          uv run --no-sync python -c "import sys, platform; print('python', sys.version)"
+          uv run --no-sync python -c "import duckdb, polars, sqlglot, pydantic; \
+            print('duckdb', duckdb.__version__); print('polars', polars.__version__); \
+            print('sqlglot', sqlglot.__version__); print('pydantic', pydantic.VERSION)"
+          uv run --no-sync python -c "import platform; print(platform.platform())"
+
+      - name: Run the suite
+        run: uv run --no-sync pytest -q
+
+  lockfile:
+    name: lockfile is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Check uv.lock matches pyproject.toml
+        # Catches a dependency edited without re-locking, which would put CI and
+        # every developer on different versions.
+        run: uv lock --check
